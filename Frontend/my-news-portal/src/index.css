@@ -1,0 +1,340 @@
+:root {
+  --bg-color: #f5f5f5; 
+  --bg-secondary: #ffffff;
+  --text-color: #202020;
+  --text-secondary: #606060;
+  --border-color: #e0e0e0;
+  --accent-color: #007aff;
+  --tengri-green: #30b037;
+  --radius-input: 4px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1a1a1a;
+    --bg-secondary: #252525;
+    --text-color: #f5f5f5;
+    --text-secondary: #a0a0a0;
+    --border-color: #383838;
+    --accent-color: #0a84ff;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+}
+* { box-sizing: border-box; }
+a { color: inherit; text-decoration: none; } 
+a:hover { color: var(--accent-color); }
+img { max-width: 100%; height: auto; display: block; }
+small { color: var(--text-secondary); }
+h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 600; }
+
+.app-container {
+  max-width: 1100px; 
+  margin: 0 auto;
+  padding: 0; 
+  background-color: var(--bg-secondary);
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+.top-bar {
+  background-color: #333;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.top-bar-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 15px;
+  display: flex;
+  flex-wrap: wrap;
+}
+.top-bar a {
+  padding: 10px 15px;
+  text-transform: uppercase;
+  color: #aaa; 
+  transition: color 0.2s, background-color 0.2s;
+}
+.top-bar a:hover {
+  background-color: #555;
+  color: #fff; 
+}
+.top-bar a.active {
+  background-color: var(--tengri-green);
+  color: #fff; 
+}
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 15px;  
+  border-bottom: 1px solid var(--border-color);
+}
+.header-logo {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--text-color);
+}
+.header-logo a { text-decoration: none; }
+.header-logo a:hover { color: inherit; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.header-search {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+}
+.header-search input {
+  border: none;
+  padding: 8px 12px;
+  background: none;
+  border-radius: var(--radius-input) 0 0 var(--radius-input);
+  color: var(--text-color);
+}
+.header-search input:focus { outline: none; }
+.header-search button {
+  border: none;
+  background: none;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.admin-link {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+main { 
+  padding: 20px 15px; 
+}
+footer {
+  text-align: center;
+  padding: 20px 15px;
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+ 
+.home-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 900px) {
+  .home-layout {
+    grid-template-columns: 2fr 1fr;  
+  }
+}
+
+ 
+.featured-article {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-input);
+}
+.featured-link-wrapper {
+  display: block;
+  position: relative;
+  color: #fff;  
+}
+.featured-image {
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  aspect-ratio: 16 / 9; 
+}
+.featured-link-wrapper:hover .featured-image {
+  transform: scale(1.03);
+}
+
+.featured-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 20px 20px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
+}
+.featured-overlay h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 10px 0;
+  color: #fff;  
+}
+.featured-link-wrapper:hover {
+  text-decoration: none;
+}
+.featured-link-wrapper:hover .featured-overlay h2 {
+  text-decoration: underline;
+}
+
+.featured-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  color: #fff;  
+}
+.featured-meta small {
+  color: #fff;  
+}
+ 
+.sub-feed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+.sub-feed-item img {
+  border-radius: var(--radius-input);
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  margin-bottom: 5px;
+}
+.sub-feed-item h4 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.4;
+  color: var(--text-color);  
+}
+.sub-feed-item h4 a:hover {
+  text-decoration: underline;
+}
+ 
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+}
+.sidebar-tabs button {
+  border: none;
+  background: none;
+  padding: 10px 15px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  position: relative;
+  bottom: -2px;  
+}
+.sidebar-tabs button.active {
+  color: var(--text-color);
+  border-bottom: 2px solid var(--tengri-green);
+}
+
+.sidebar-list {
+  margin-top: 15px;
+}
+.sidebar-item {
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+.sidebar-item a {
+  font-size: 1.1rem;
+  font-weight: 500;
+  display: block;
+  line-height: 1.3;
+  margin-bottom: 5px;
+  color: var(--text-color);  
+}
+.sidebar-item a:hover {
+  text-decoration: underline;
+}
+.sidebar-item small {
+  font-size: 0.8rem;
+}
+.comments-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid var(--border-color);
+}
+
+.comments-section h3 {
+  font-size: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* Форма добавления комментария */
+.comments-section form {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: var(--radius-container);
+  margin-bottom: 30px;
+  box-shadow: var(--container-shadow);
+}
+
+.comments-section form input[type="text"],
+.comments-section form textarea {
+  margin-top: 0; /* Убираем лишний отступ */
+}
+
+.comments-section form button {
+  width: 100%; /* Кнопка на всю ширину */
+}
+/* На больших экранах делаем имя и кнопку в одну строку */
+@media (min-width: 600px) {
+  .comments-section form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 15px;
+    align-items: flex-start;
+  }
+  .comments-section form textarea {
+    grid-column: 1 / -1; /* Textarea всегда на всю ширину */
+    margin-bottom: 0;
+  }
+  .comments-section form input[type="text"] {
+     margin-bottom: 0;
+  }
+  .comments-section form button {
+    width: auto; /* Возвращаем авто-ширину */
+  }
+}
+
+
+/* Список комментариев */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Пробел между комментариями */
+}
+
+/* Отдельный комментарий */
+.comments-list div {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 15px 20px;
+  border-radius: var(--radius-container);
+  box-shadow: var(--container-shadow);
+}
+
+.comments-list strong {
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+.comments-list small {
+  margin-left: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.comments-list p {
+  margin: 8px 0 0 0;
+  font-size: 1rem;
+  color: var(--text-color);
+  line-height: 1.5;
+  white-space: pre-wrap; /* Сохраняет переносы строк */
+}
