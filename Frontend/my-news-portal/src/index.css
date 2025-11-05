@@ -338,3 +338,37 @@ footer {
   line-height: 1.5;
   white-space: pre-wrap; /* Сохраняет переносы строк */
 }
+
+.sub-feed {
+  display: grid;
+  /* Эта строка сделает сетку из 3-х колонок */
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 15px;
+  margin-top: 20px;
+}
+.sub-feed-item img {
+  border-radius: var(--radius-input);
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  margin-bottom: 5px;
+}
+.sub-feed-item h4 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0 0 5px 0; /* Добавлен отступ снизу */
+  line-height: 1.4;
+  color: var(--text-color);
+}
+.sub-feed-item h4 a:hover {
+  text-decoration: underline;
+}
+.sub-feed-item small {
+  font-size: 0.8rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 600px) {
+  .sub-feed {
+    grid-template-columns: 1fr 1fr; /* 2 колонки на мобильных */
+  }
+}

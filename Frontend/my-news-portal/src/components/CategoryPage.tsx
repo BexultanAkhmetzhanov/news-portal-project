@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom'; // useParams, чтобы достать :slug
+import { useParams, Link } from 'react-router-dom';  
 import apiClient from '../api/apiClient';
 
 interface Article {
@@ -8,8 +8,10 @@ interface Article {
   content: string;
   imageUrl: string | null;
   createdAt: string;
-  categoryName: string | null; // Нам нужно имя категории для заголовка
+  categoryName: string | null;  
   comment_count: number;
+  view_count: number;     
+  is_featured: number;
 }
 
 function CategoryPage() {
@@ -61,27 +63,49 @@ function CategoryPage() {
     return <p style={{ color: 'red' }}>{error}</p>;
   }
 
-  return (
-    <div>
- 
-      <h2 style={{ textTransform: 'capitalize' }}>
-        {categoryName || 'Категория'}
-      </h2>
+ return (
+    <div className="home-layout"> {/* Используем тот же 2-колоночный макет */}
+      
+      {/* --- Левая колонка --- */}
+      <div className="main-feed">
+        <h2 style={{textTransform: 'capitalize', borderBottom: '2px solid var(--tengri-green)', paddingBottom: '10px'}}>
+          {categoryName}
+        </h2>
 
-      <div className="news-feed">
         {news.length === 0 ? (
           <p>В этой категории новостей пока нет.</p>
         ) : (
-          news.map((article) => (
-            <article key={article.id} style={{ marginBottom: '15px' }}>
-              <h3>
-                <Link to={`/news/${article.id}`}>{article.title}</Link>
-              </h3>
-              <p>{article.content.substring(0, 150)}...</p>
-            </article>
-          ))
+          // 1. Используем тот же класс "sub-feed" (сетка)
+          <section className="sub-feed" style={{marginTop: '20px'}}> 
+            {news.map((article) => ( 
+              // 2. Используем "sub-feed-item" (картинка + заголовок)
+              <article key={article.id} className="sub-feed-item">
+                {article.imageUrl && (
+                  <Link to={`/news/${article.id}`}>
+                    <img src={article.imageUrl} alt={article.title} />
+                  </Link>
+                )}
+                <h4><Link to={`/news/${article.id}`}>{article.title}</Link></h4>
+                {/* Мы больше не показываем p>{article.content...}<p> 
+                  и проблема "dogs... dogs..." исчезнет.
+                */}
+                <small>
+                  {new Date(article.createdAt).toLocaleDateString()} | 👁 {article.view_count} | 💬 {article.comment_count}
+                </small>
+              </article>
+            ))}
+          </section>
         )}
       </div>
+
+      {/* --- Правая колонка --- */}
+      {/* Мы можем сюда снова добавить <Sidebar />, 
+        если вы хотите, чтобы он был на всех страницах.
+      */}
+      <aside className="sidebar">
+        {/* (Здесь можно вставить <Sidebar />) */}
+      </aside>
+
     </div>
   );
 }

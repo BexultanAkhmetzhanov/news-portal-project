@@ -209,16 +209,28 @@ fastify.get('/news/:id/comments', async (request, reply) => {
 });
 
 fastify.post('/news/:id/comments', async (request, reply) => {
-  const { id } = request.params;
-  const { author, content } = request.body;
-  if (!author || !content || author.trim() === '' || content.trim() === '') {
-    return reply.code(400).send({ error: 'Имя и комментарий не могут быть пустыми' });
+  try {
+    const { id } = request.params;
+    const { author, content } = request.body;
+
+    if (!author || !content || author.trim() === '' || content.trim() === '') {
+      return reply.code(400).send({ error: 'Имя и комментарий не могут быть пустыми' });
+    }
+
+    const stmt = db.prepare('INSERT INTO comments (news_id, author, content) VALUES (?, ?, ?)');
+    // 'id' из params - это строка, лучше преобразовать в число
+    const info = stmt.run(Number(id), author, content); 
+
+    const newCommentStmt = db.prepare('SELECT * FROM comments WHERE id = ?');
+    const newComment = newCommentStmt.get(info.lastInsertRowid);
+
+    return reply.code(201).send(newComment);
+
+  } catch (err) {
+    // Ловим ошибку и отправляем 500, не "падая"
+    fastify.log.error(`Ошибка сохранения комментария: ${err.message}`);
+    return reply.code(500).send({ error: 'Ошибка сервера при сохранении комментария' });
   }
-  const stmt = db.prepare('INSERT INTO comments (news_id, author, content) VALUES (?, ?, ?)');
-  const info = stmt.run(id, author, content);
-  const newCommentStmt = db.prepare('SELECT * FROM comments WHERE id = ?');
-  const newComment = newCommentStmt.get(info.lastInsertRowid);
-  return reply.code(201).send(newComment);
 });
 
 fastify.get('/news/popular', async (request, reply) => {
