@@ -1,35 +1,37 @@
 :root {
-  --bg-color: #f5f5f5; 
+  /* 1. Фон делаем полностью белым */
+  --bg-color: #ffffff; 
   --bg-secondary: #ffffff;
+
+  /* 2. Текст оставляем темным */
   --text-color: #202020;
   --text-secondary: #606060;
-  --border-color: #e0e0e0;
-  --accent-color: #007aff;
-  --tengri-green: #30b037;
+  
+  /* 3. Цвет границ */
+  --border-color: #eeeeee; /* Сделаем чуть светлее */
+
+  /* 4. ГЛАВНОЕ: Меняем акцентный цвет с синего/зеленого на красный */
+  --accent-color: #D32F2F; /* (Красный цвет, как "НАУКА") */
+  --tengri-green: #D32F2F; /* (Переименуем это мысленно, но используем для активных ссылок) */
+  
   --radius-input: 4px;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #1a1a1a;
-    --bg-secondary: #252525;
-    --text-color: #f5f5f5;
-    --text-secondary: #a0a0a0;
-    --border-color: #383838;
-    --accent-color: #0a84ff;
-  }
-}
+
+/* Мы УДАЛИЛИ '@media (prefers-color-scheme: dark)'
+  чтобы сайт всегда был светлым, как на скриншоте.
+*/
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background-color: var(--bg-color);
+  background-color: var(--bg-color); /* (Теперь это белый) */
   color: var(--text-color);
   line-height: 1.6;
 }
 * { box-sizing: border-box; }
 a { color: inherit; text-decoration: none; } 
-a:hover { color: var(--accent-color); }
+a:hover { color: var(--accent-color); } /* (Теперь это красный) */
 img { max-width: 100%; height: auto; display: block; }
 small { color: var(--text-secondary); }
 h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 600; }
@@ -38,15 +40,21 @@ h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 600; }
   max-width: 1100px; 
   margin: 0 auto;
   padding: 0; 
-  background-color: var(--bg-secondary);
-  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  background-color: var(--bg-secondary); /* (Теперь это белый) */
+  
+  /* Убираем тень, как на скриншоте */
+  box-shadow: none; 
 }
 
+/* --- ВЕРХНИЙ БАР (как на скриншоте) --- */
 .top-bar {
-  background-color: #333;
-  color: #fff;
+  /* Меняем фон с #333 (темный) на белый */
+  background-color: #ffffff; 
+  color: var(--text-color); /* Текст делаем темным */
   font-size: 0.9rem;
   font-weight: 500;
+  /* Добавляем нижнюю границу, как на скриншоте */
+  border-bottom: 1px solid var(--border-color); 
 }
 .top-bar-content {
   max-width: 1100px;
@@ -58,16 +66,18 @@ h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 600; }
 .top-bar a {
   padding: 10px 15px;
   text-transform: uppercase;
-  color: #aaa; 
-  transition: color 0.2s, background-color 0.2s;
+  color: var(--text-color); /* Цвет ссылок - темный */
+  transition: color 0.2s;
 }
 .top-bar a:hover {
-  background-color: #555;
-  color: #fff; 
+  background-color: transparent; /* Убираем фон при наведении */
+  color: var(--accent-color); /* (красный) */
 }
 .top-bar a.active {
-  background-color: var(--tengri-green);
-  color: #fff; 
+  /* Активная ссылка (как "НАУКА") */
+  background-color: transparent;
+  color: var(--accent-color); /* (красный) */
+  font-weight: 700;
 }
 .main-header {
   display: flex;
@@ -126,249 +136,190 @@ footer {
   color: var(--text-secondary);
 }
  
+/* НОВЫЕ СТИЛИ ДЛЯ ГЛАВНОЙ СТРАНИЦЫ (index.css)
+   Они заменяют все, что было, начиная с .home-layout
+*/
+
 .home-layout {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr; /* 1 колонка на мобильных */
   gap: 20px;
 }
+
 @media (min-width: 900px) {
   .home-layout {
-    grid-template-columns: 2fr 1fr;  
+    /* 2 колонки на ПК: 2 части для новостей, 1 для сайдбара */
+    grid-template-columns: 2fr 1fr;
   }
 }
 
- 
+/* --- СТИЛИ ГЛАВНОЙ КОЛОНКИ (ЛЕВОЙ) --- */
+.main-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* --- Главная (Featured) новость --- */
 .featured-article {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-input);
 }
-.featured-link-wrapper {
+.featured-article a {
   display: block;
-  position: relative;
-  color: #fff;  
+  text-decoration: none;
+  color: inherit;
 }
-.featured-image {
+.featured-article img {
   width: 100%;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  border-radius: var(--radius-input);
   transition: transform 0.3s ease;
-  aspect-ratio: 16 / 9; 
 }
-.featured-link-wrapper:hover .featured-image {
+.featured-article a:hover img {
   transform: scale(1.03);
 }
-
-.featured-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 40px 20px 20px;
-  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%);
-}
-.featured-overlay h2 {
+.featured-article h2 {
   font-size: 1.8rem;
   font-weight: 700;
   line-height: 1.2;
-  margin: 0 0 10px 0;
-  color: #fff;  
+  margin: 10px 0 5px 0;
 }
-.featured-link-wrapper:hover {
-  text-decoration: none;
-}
-.featured-link-wrapper:hover .featured-overlay h2 {
-  text-decoration: underline;
+.featured-article .article-meta {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-.featured-meta {
-  display: flex;
-  gap: 15px;
-  font-size: 0.8rem;
-  opacity: 0.8;
-  color: #fff;  
-}
-.featured-meta small {
-  color: #fff;  
-}
- 
-.sub-feed {
+/* --- Сетка под главной новостью (как на скриншоте) --- */
+.main-feed-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
-  margin-top: 20px;
+  grid-template-columns: 1fr 1fr; /* 2 колонки */
+  gap: 20px;
 }
-.sub-feed-item img {
-  border-radius: var(--radius-input);
+.feed-grid-item a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.feed-grid-item img {
+  width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
-  margin-bottom: 5px;
+  border-radius: var(--radius-input);
+  margin-bottom: 8px;
 }
-.sub-feed-item h4 {
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin: 0;
-  line-height: 1.4;
-  color: var(--text-color);  
-}
-.sub-feed-item h4 a:hover {
-  text-decoration: underline;
-}
- 
-.sidebar-tabs {
-  display: flex;
-  border-bottom: 2px solid var(--border-color);
-}
-.sidebar-tabs button {
-  border: none;
-  background: none;
-  padding: 10px 15px;
-  font-size: 1rem;
+.feed-grid-item h3 {
+  font-size: 1.1rem;
   font-weight: 600;
-  cursor: pointer;
-  color: var(--text-secondary);
-  position: relative;
-  bottom: -2px;  
-}
-.sidebar-tabs button.active {
-  color: var(--text-color);
-  border-bottom: 2px solid var(--tengri-green);
-}
-
-.sidebar-list {
-  margin-top: 15px;
-}
-.sidebar-item {
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--border-color);
-}
-.sidebar-item a {
-  font-size: 1.1rem;
-  font-weight: 500;
-  display: block;
   line-height: 1.3;
-  margin-bottom: 5px;
-  color: var(--text-color);  
+  margin: 0 0 5px 0;
 }
-.sidebar-item a:hover {
-  text-decoration: underline;
-}
-.sidebar-item small {
-  font-size: 0.8rem;
-}
-.comments-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 2px solid var(--border-color);
-}
-
-.comments-section h3 {
-  font-size: 1.5rem;
-  margin-top: 0;
-  margin-bottom: 20px;
-}
-
-/* Форма добавления комментария */
-.comments-section form {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 20px;
-  border-radius: var(--radius-container);
-  margin-bottom: 30px;
-  box-shadow: var(--container-shadow);
-}
-
-.comments-section form input[type="text"],
-.comments-section form textarea {
-  margin-top: 0; /* Убираем лишний отступ */
-}
-
-.comments-section form button {
-  width: 100%; /* Кнопка на всю ширину */
-}
-/* На больших экранах делаем имя и кнопку в одну строку */
-@media (min-width: 600px) {
-  .comments-section form {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 15px;
-    align-items: flex-start;
-  }
-  .comments-section form textarea {
-    grid-column: 1 / -1; /* Textarea всегда на всю ширину */
-    margin-bottom: 0;
-  }
-  .comments-section form input[type="text"] {
-     margin-bottom: 0;
-  }
-  .comments-section form button {
-    width: auto; /* Возвращаем авто-ширину */
-  }
-}
-
-
-/* Список комментариев */
-.comments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Пробел между комментариями */
-}
-
-/* Отдельный комментарий */
-.comments-list div {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 15px 20px;
-  border-radius: var(--radius-container);
-  box-shadow: var(--container-shadow);
-}
-
-.comments-list strong {
-  font-size: 1.1rem;
-  color: var(--text-color);
-}
-.comments-list small {
-  margin-left: 10px;
+.feed-grid-item .article-meta {
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
-.comments-list p {
-  margin: 8px 0 0 0;
-  font-size: 1rem;
-  color: var(--text-color);
-  line-height: 1.5;
-  white-space: pre-wrap; /* Сохраняет переносы строк */
+
+/* --- СТИЛИ САЙДБАРА (ПРАВОЙ) --- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.sub-feed {
-  display: grid;
-  /* Эта строка сделает сетку из 3-х колонок */
-  grid-template-columns: repeat(3, 1fr); 
-  gap: 15px;
-  margin-top: 20px;
-}
-.sub-feed-item img {
+/* Общий блок сайдбара */
+.sidebar-section {
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-input);
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
+  padding: 15px;
+}
+
+/* "LIVE" блок (как на скриншоте) */
+.sidebar-live {
+  background-color: var(--bg-color);
+}
+.sidebar-live .live-badge {
+  color: #FF0000; /* Красный цвет для LIVE */
+  font-weight: 700;
+  font-size: 0.9rem;
   margin-bottom: 5px;
 }
-.sub-feed-item h4 {
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin: 0 0 5px 0; /* Добавлен отступ снизу */
-  line-height: 1.4;
-  color: var(--text-color);
+.sidebar-live h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 5px 0;
 }
-.sub-feed-item h4 a:hover {
+.sidebar-live a:hover h3 {
   text-decoration: underline;
 }
-.sub-feed-item small {
-  font-size: 0.8rem;
+.sidebar-live .article-meta {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
 }
 
-/* Адаптивность для мобильных */
+/* Сетка в сайдбаре (как на скриншоте) */
+.sidebar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 колонки */
+  gap: 15px;
+}
+
+.sidebar-grid-item a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.sidebar-grid-item img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius-input);
+  margin-bottom: 8px;
+}
+.sidebar-grid-item h4 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
+  margin: 0 0 5px 0;
+}
+.sidebar-grid-item a:hover h4 {
+  text-decoration: underline;
+}
+.sidebar-grid-item .article-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Адаптация для мобильных */
 @media (max-width: 600px) {
-  .sub-feed {
-    grid-template-columns: 1fr 1fr; /* 2 колонки на мобильных */
+  /* На мобильных все сетки превращаются в 1 колонку */
+  .main-feed-grid {
+    grid-template-columns: 1fr;
   }
+  .sidebar-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Стили для страницы статьи (чтобы текст не "прилипал") */
+.article-content {
+  line-height: 1.7;
+  font-size: 1.1rem;
+  white-space: pre-wrap; /* Сохраняет абзацы */
+  margin-top: 20px;
+}
+.article-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.article-header h1 {
+  font-size: 2.2rem;
+  line-height: 1.2;
+  margin: 0;
+}
+.article-header .meta-info {
+  margin-top: 10px;
+  color: var(--text-secondary);
 }

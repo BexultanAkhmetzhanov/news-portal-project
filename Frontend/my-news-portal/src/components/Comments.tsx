@@ -1,6 +1,8 @@
 // src/components/Comments.tsx
 import { useState, useEffect, type FormEvent } from 'react';
 import apiClient from '../api/apiClient';
+import { useAuth } from '../context/AuthContext'; // 1. Импортируем useAuth
+
 interface Comment {
   id: number;
   news_id: number;
@@ -13,13 +15,20 @@ interface CommentsProps {
 }
 
 function Comments({ newsId }: CommentsProps) {
+  const { user } = useAuth(); // 2. Получаем текущего пользователя
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [newAuthor, setNewAuthor] = useState('');
   const [newContent, setNewContent] = useState('');
   const [postError, setPostError] = useState<string | null>(null);
+  
+  // 3. Состояние, чтобы знать, вошел ли юзер (для блокировки поля)
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // 4. Загрузка комментариев (без изменений)
   const fetchComments = async () => {
     try {
       setLoading(true);
@@ -33,24 +42,48 @@ function Comments({ newsId }: CommentsProps) {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchComments();
   }, [newsId]);
+
+  // 5. Эффект для авто-заполнения имени
+  useEffect(() => {
+    if (user) {
+      setNewAuthor(user.username);
+      setIsLoggedIn(true);
+    } else {
+      setNewAuthor(''); // Если вышел, очищаем
+      setIsLoggedIn(false);
+    }
+  }, [user]); // Запускается, когда 'user' меняется
+
+  // 6. Обновленный обработчик отправки
   const handleSubmitComment = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newAuthor.trim() || !newContent.trim()) {
-      setPostError("Имя и комментарий обязательны.");
+
+    // 6.1. Если автор не указан (и не залогинен), ставим "Аноним"
+    const authorToSend = (newAuthor.trim() === '') ? 'Аноним' : newAuthor;
+    
+    if (!newContent.trim()) {
+      setPostError("Комментарий не может быть пустым.");
       return;
     }
 
     try {
       setPostError(null);
       const response = await apiClient.post<Comment>(`/news/${newsId}/comments`, {
-        author: newAuthor,
+        author: authorToSend, // 6.2. Отправляем 'Аноним' или имя
         content: newContent,
       });
+      
+      // Обновляем список комментов
       setComments([...comments, response.data]);
-      setNewAuthor('');
+      
+      // 6.3. Очищаем поля (но не имя, если залогинен)
+      if (!isLoggedIn) {
+        setNewAuthor('');
+      }
       setNewContent('');
 
     } catch (err) {
@@ -64,12 +97,17 @@ function Comments({ newsId }: CommentsProps) {
       <h3>Комментарии</h3>
 
       <form onSubmit={handleSubmitComment} style={{ display: 'grid', gap: '10px', maxWidth: '400px', marginBottom: '20px' }}>
+        
+        {/* 7. Обновленное поле "Имя" */}
         <input
           type="text"
-          placeholder="Ваше имя"
+          placeholder={isLoggedIn ? '' : "Ваше имя (или Аноним)"}
           value={newAuthor}
           onChange={(e) => setNewAuthor(e.target.value)}
+          disabled={isLoggedIn} // 7.1. Блокируем, если вошел
+          style={isLoggedIn ? { backgroundColor: '#eee' } : {}} // 7.2. Делаем серым
         />
+        
         <textarea
           rows={4}
           placeholder="Ваш комментарий..."
@@ -80,6 +118,7 @@ function Comments({ newsId }: CommentsProps) {
         <button type="submit">Отправить</button>
       </form>
 
+      {/* Список комментариев (без изменений) */}
       {loading && <p>Загрузка комментариев...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
       

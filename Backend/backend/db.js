@@ -7,7 +7,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'editor',
+    role TEXT NOT NULL DEFAULT 'user',
     refresh_token TEXT 
   );
 
@@ -44,6 +44,39 @@ db.exec(`
     FOREIGN KEY (news_id) REFERENCES news (id) ON DELETE CASCADE
   );
 `);
+
+
+/* --- НОВЫЙ КОД (ВСТАВИТЬ ПОСЛЕ db.exec) --- */
+try {
+  // Добавляем колонку 'status' для модерации
+  db.exec(`
+    ALTER TABLE news ADD COLUMN status TEXT DEFAULT 'approved' NOT NULL;
+  `);
+  // Сразу делаем все старые новости 'approved' (одобренными)
+  db.exec(`
+    UPDATE news SET status = 'approved' WHERE status IS NULL;
+  `);
+  console.log('Таблица "news" успешно обновлена (status).');
+} catch (err) {
+  if (!err.message.includes('duplicate column name')) {
+    console.error('Ошибка при обновлении таблицы news (status):', err);
+  }
+}
+
+try {
+  // Пытаемся добавить новые колонки в таблицу users
+  // 'IF NOT EXISTS' поддерживается в ALTER TABLE в SQLite
+  db.exec(`
+    ALTER TABLE users ADD COLUMN fullname TEXT;
+    ALTER TABLE users ADD COLUMN avatarUrl TEXT;
+  `);
+  console.log('Таблица "users" успешно обновлена (fullname, avatarUrl).');
+} catch (err) {
+  // Игнорируем ошибку, если колонки уже существуют
+  if (!err.message.includes('duplicate column name')) {
+    console.error('Ошибка при обновлении таблицы users:', err);
+  }
+}
 
 /* --- НОВЫЙ КОД (ВСТАВИТЬ ПОСЛЕ db.exec) --- */
 // Добавим несколько категорий по умолчанию, если их нет

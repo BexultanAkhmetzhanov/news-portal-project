@@ -11,7 +11,7 @@ apiClient.interceptors.response.use(
   (response) => response, // Успех: просто возвращаем
   (error) => {
     // Если ошибка 401 (токен протух), разлогиниваем пользователя
-    if (error.response.status === 401) {
+    if (error.response && error.response.status === 401) {
       localStorage.removeItem('user'); // Очищаем UI
       // Жесткий редирект на логин, чтобы очистить состояние
       if (window.location.pathname !== '/login') {
