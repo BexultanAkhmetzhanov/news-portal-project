@@ -3,7 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import { useAuth } from '../context/AuthContext';
 import UserManagement from './UserManagement';
-import CategoryManagement from './CategoryManagement'; // (Этот импорт теперь будет работать)
+import CategoryManagement from './CategoryManagement';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 interface Article {
   id: number;
@@ -11,11 +13,11 @@ interface Article {
   content: string;
   imageUrl: string | null;
   createdAt: string;
-  category_id: number | null;  
-  categoryName: string | null;  
-  categorySlug: string | null;  
-  is_featured: number;  
-  view_count: number;   
+  category_id: number | null;
+  categoryName: string | null;
+  categorySlug: string | null;
+  is_featured: number;
+  view_count: number;
   comment_count: number;
   status: 'pending' | 'approved';
 }
@@ -24,7 +26,7 @@ interface CreateNewsResponse {
   message: string;
   id: number;
 }
- 
+
 interface Category {
   id: number;
   name: string;
@@ -33,20 +35,20 @@ interface Category {
 
 function AdminDashboard() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth(); 
-  
+  const { user, logout } = useAuth();
+
   const [isFeatured, setIsFeatured] = useState(false);
   const [newsList, setNewsList] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  
+
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
   const [newCategoryId, setNewCategoryId] = useState<string>('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [newFile, setNewFile] = useState<File | null>(null);
-  
+
   // --- 1. ИСПРАВЛЕНИЕ ТИПА ---
   // Добавляем 'categories' в список возможных вкладок
   const [activeTab, setActiveTab] = useState<'manage' | 'create' | 'moderate' | 'categories'>('manage');
@@ -60,7 +62,7 @@ function AdminDashboard() {
       setError('Не удалось загрузить список новостей');
     }
   };
-  
+
   const fetchCategories = async () => {
     try {
       const res = await apiClient.get<Category[]>('/categories');
@@ -85,7 +87,7 @@ function AdminDashboard() {
     if (user) {
       setLoading(true);
       Promise.all([
-        fetchManageNews(), 
+        fetchManageNews(),
         fetchCategories()
       ]).catch((err) => {
         console.error(err);
@@ -94,11 +96,11 @@ function AdminDashboard() {
         setLoading(false);
       });
     }
-  }, [user]); 
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
-    navigate('/'); 
+    navigate('/');
   };
 
   const handleCreateNews = async (e: FormEvent<HTMLFormElement>) => {
@@ -115,7 +117,7 @@ function AdminDashboard() {
     formData.append('category_id', newCategoryId);
     formData.append('is_featured', isFeatured ? '1' : '0');
     formData.append('imageUrl', newImageUrl); // URL (текст)
-    
+
     // 2. Добавляем файл, если он выбран
     if (newFile) {
       formData.append('imageFile', newFile);
@@ -137,7 +139,7 @@ function AdminDashboard() {
       setNewCategoryId('');
       setIsFeatured(false);
       setNewFile(null); // <-- Сброс файла
-      
+
       await fetchManageNews();
       setActiveTab('manage');
 
@@ -152,7 +154,7 @@ function AdminDashboard() {
     if (!window.confirm('Вы уверены, что хотите удалить эту новость?')) {
       return;
     }
-    try { 
+    try {
       await apiClient.delete(`/admin/news/${id}`);
       setNewsList(newsList.filter((article) => article.id !== id));
       alert('Новость удалена');
@@ -161,7 +163,7 @@ function AdminDashboard() {
       setError('Ошибка при удалении новости');
     }
   };
-  
+
   if (!user) return <p>Перенаправление на страницу входа...</p>;
   if (loading) return <p>Загрузка админ-панели...</p>;
 
@@ -173,7 +175,7 @@ function AdminDashboard() {
           Выйти
         </button>
       </div>
-      
+
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <nav style={{ display: 'flex', gap: '10px', borderBottom: '1px solid #333', marginBottom: '20px' }}>
@@ -195,7 +197,7 @@ function AdminDashboard() {
           </>
         )}
       </nav>
-      
+
       {activeTab === 'create' && (
         <section>
           <h3>Создать новость</h3>
@@ -207,7 +209,7 @@ function AdminDashboard() {
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
             />
-            <select 
+            <select
               value={newCategoryId}
               onChange={(e) => setNewCategoryId(e.target.value)}
             >
@@ -218,12 +220,15 @@ function AdminDashboard() {
                 </option>
               ))}
             </select>
-            <textarea
-              rows={10}
-              placeholder="Содержание (можно использовать переносы строк)"
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-            />
+            <div style={{ marginBottom: '50px', height: '300px' }}> {/* Контейнер для высоты */}
+              <ReactQuill
+                theme="snow"
+                value={newContent}
+                onChange={setNewContent} // ReactQuill сам передает value, не event
+                placeholder="Напишите что-нибудь потрясающее..."
+                style={{ height: '250px' }}
+              />
+            </div>
             <input
               type="text"
               placeholder="URL Картинки (необязательно)"
@@ -231,14 +236,14 @@ function AdminDashboard() {
               onChange={(e) => setNewImageUrl(e.target.value)}
             />
             <label>ИЛИ Загрузить файл (приоритет):</label>
-            <input 
+            <input
               type="file"
               accept="image/*"
               onChange={(e) => setNewFile(e.target.files?.[0] || null)}
             />
             <div>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="isFeaturedCheck"
                 checked={isFeatured}
                 onChange={(e) => setIsFeatured(e.target.checked)}
@@ -257,8 +262,8 @@ function AdminDashboard() {
           <section>
             <h3>Управление новостями</h3>
             <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
-              {user.role === 'editor' 
-                ? 'Новые посты появятся здесь после одобрения админом.' 
+              {user.role === 'editor'
+                ? 'Новые посты появятся здесь после одобрения админом.'
                 : 'Здесь показаны все новости (одобренные и на рассмотрении).'}
             </p>
             <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -267,7 +272,7 @@ function AdminDashboard() {
                   <span>
                     {article.is_featured === 1 && <strong style={{ color: 'blue' }}>[Главная] </strong>}
                     {article.status === 'pending' && <strong style={{ color: 'orange' }}>[На рассмотрении] </strong>}
-                    
+
                     <Link to={`/admin/edit/${article.id}`}>{article.title}</Link>
                     {article.categoryName && (
                       <em style={{ marginLeft: '10px', color: '#777' }}>
@@ -275,20 +280,20 @@ function AdminDashboard() {
                       </em>
                     )}
                   </span>
-                  
+
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <small style={{ color: '#777' }}>(Просмотры: {article.view_count})</small>
-                    
+
                     {article.is_featured === 0 && (
-                      <button 
+                      <button
                         onClick={() => handleMakeFeatured(article.id)}
                         style={{ backgroundColor: '#007aff', color: 'white', fontSize: '0.8rem' }}
                       >
                         Сделать главной
                       </button>
                     )}
-                    
-                    <button 
+
+                    <button
                       onClick={() => handleDeleteNews(article.id)}
                       style={{ backgroundColor: '#ff4d4d', color: 'white' }}
                     >
@@ -315,9 +320,9 @@ function AdminDashboard() {
 
       {/* Эта вкладка теперь будет работать */}
       {activeTab === 'categories' && user.role === 'admin' && (
-        <CategoryManagement 
-          categories={categories}       
-          onCategoriesUpdate={fetchCategories} 
+        <CategoryManagement
+          categories={categories}
+          onCategoriesUpdate={fetchCategories}
         />
       )}
 
@@ -381,20 +386,20 @@ function NewsModeration() {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {pendingNews.map((article) => (
           <li key={article.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px', borderBottom: '1px solid #eee' }}>
-            
+
             <Link to={`/admin/edit/${article.id}`}>
               {article.title}
               {article.categoryName && <em style={{ marginLeft: '10px', color: '#777' }}>({article.categoryName})</em>}
             </Link>
 
             <div style={{ display: 'flex', gap: '5px' }}>
-              <button 
+              <button
                 onClick={() => handleApprove(article.id)}
                 style={{ backgroundColor: 'var(--tengri-green)', color: 'white' }}
               >
                 Одобрить
               </button>
-              <button 
+              <button
                 onClick={() => handleReject(article.id)}
                 style={{ backgroundColor: '#ff4d4d', color: 'white' }}
               >

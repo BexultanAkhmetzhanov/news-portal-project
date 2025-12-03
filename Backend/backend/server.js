@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const fastify = require('fastify')({ logger: true });
 const db = require('./db.js');
 const bcrypt = require('bcrypt');
@@ -6,7 +8,11 @@ const path = require('path');
 const fs = require('fs');
 const util = require('util');
 const { pipeline } = require('stream');
+const sanitizeHtml = require('sanitize-html');
+const sharp = require('sharp');
+const serve = 'http://localhost:3001';
 const pump = util.promisify(pipeline);
+
 try {
   fs.mkdirSync(path.join(__dirname, 'uploads'));
 } catch (e) {
@@ -14,7 +20,7 @@ try {
 }
 
 fastify.register(require('@fastify/cors'), {
-  origin: 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
 });
@@ -26,27 +32,130 @@ fastify.register(require('@fastify/multipart'), {
   }
 });
 
-
 fastify.register(require('@fastify/static'), {
   root: path.join(__dirname, 'uploads'),
   prefix: '/uploads/',  
 });
 
-const JWT_SECRET = 'your_super_secret_key_12345';
+// --- ЗАЩИТА ---
+// 1. Helmet: Устанавливает заголовки безопасности
+fastify.register(require('@fastify/helmet'), {
+  global: true, // Включить для всех маршрутов
+  crossOriginResourcePolicy: false, // Разрешаем загрузку картинок с этого сервера
+});
+// 2. Rate Limit: Защита от DDOS и перебора паролей
+// --- САМОДЕЛЬНЫЙ RATE LIMIT ---
+const requestCounts = new Map();
+
+fastify.addHook('onRequest', async (request, reply) => {
+  const ip = request.ip || 'unknown';
+  const limit = 1000; // Лимит запросов
+  const windowMs = 30000; // 30 с
+
+  if (!requestCounts.has(ip)) {
+    requestCounts.set(ip, { count: 1, startTime: Date.now() });
+  } else {
+    const data = requestCounts.get(ip);
+    const now = Date.now();
+    
+    // Если прошло больше минуты, сбрасываем счетчик
+    if (now - data.startTime > windowMs) {
+      data.count = 1;
+      data.startTime = now;
+    } else {
+      data.count++;
+      // Если превысил лимит
+      if (data.count > limit) {
+        reply.code(429).send({ 
+          error: 'Too Many Requests', 
+          message: 'Вы слишком часто отправляете запросы (Custom Guard)' 
+        });
+        return; // Прерываем запрос
+      }
+    }
+  }
+});
+
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('КРИТИЧЕСКАЯ ОШИБКА: Не найден JWT_SECRET в файле .env');
+  process.exit(1); 
+}
 const SALT_ROUNDS = 10;
 
-fastify.post('/register', async (request, reply) => {
-  const { username, password } = request.body;
-  if (!username || !password) {
-    return reply.code(400).send({ error: 'Нужны имя пользователя и пароль' });
+const registerSchema = {
+  body: {
+    type: 'object',
+    required: ['username', 'password'],
+    properties: {
+      username: { 
+        type: 'string', 
+        minLength: 3, 
+        maxLength: 30,
+        pattern: '^[a-zA-Z0-9_]+$' // Только буквы, цифры и подчеркивание (никаких пробелов и спецсимволов в логине)
+      }, 
+      password: { 
+        type: 'string', 
+        minLength: 8, // Увеличили до 8
+        // Regex: Строчная + Заглавная + Цифра
+        pattern: '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])' 
+      } 
+    }
   }
+};
+
+const loginSchema = {
+  body: {
+    type: 'object',
+    required: ['username', 'password'],
+    properties: {
+      username: { type: 'string' },
+      password: { type: 'string' }
+    }
+  }
+};
+
+// --- ГЛУБОКАЯ ОЧИСТКА ДАННЫХ (Sanitization) ---
+fastify.addHook('preHandler', async (request, reply) => {
+  if (request.body && typeof request.body === 'object') {
+    for (const key in request.body) {
+      if (typeof request.body[key] === 'string') {
+        // Поля пароля и картинки не трогаем
+        if (key === 'password' || key === 'imageUrl') continue;
+
+        const original = request.body[key];
+        
+        // Разрешаем теги форматирования для новостей (title и content)
+        const sanitized = sanitizeHtml(original, {
+          allowedTags: [ 
+            'h1', 'h2', 'h3', 'p', 'b', 'i', 'u', 'strong', 'em', 
+            'ul', 'ol', 'li', 'blockquote', 'a', 'br', 'img'
+          ],
+          allowedAttributes: {
+            'a': [ 'href', 'target' ],
+            'img': [ 'src', 'alt' ] // Если вы решите вставлять картинки прямо в текст
+          },
+          allowedSchemes: [ 'http', 'https', 'mailto' ]
+        });
+
+        if (original !== sanitized) {
+           request.body[key] = sanitized;
+        }
+      }
+    }
+  }
+});
+
+fastify.post('/register', { schema: registerSchema }, async (request, reply) => {
+  const { username, password } = request.body;
+  // Ручная проверка больше не нужна, Fastify сделает её за нас!
+  
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
   try {
-    // Проверяем, есть ли уже пользователи в базе
     const countStmt = db.prepare('SELECT COUNT(*) as count FROM users');
     const { count } = countStmt.get();
 
-    // Первый пользователь (count === 0) получает роль 'admin', остальные - 'editor'
     const role = (count === 0) ? 'admin' : 'user';
 
     const stmt = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
@@ -64,11 +173,13 @@ fastify.post('/register', async (request, reply) => {
   }
 });
 
-fastify.post('/login', async (request, reply) => {
+fastify.post('/login', { schema: loginSchema }, async (request, reply) => {
   const { username, password } = request.body;
   
   const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
   const user = stmt.get(username);
+  
+  // Здесь мы оставляем проверки, так как это логика безопасности (есть ли такой юзер?)
   if (!user) {
     return reply.code(401).send({ error: 'Неверные имя пользователя или пароль' });
   }
@@ -87,7 +198,7 @@ fastify.post('/login', async (request, reply) => {
   reply.setCookie('accessToken', accessToken, {
     path: '/',
     httpOnly: true,
-    secure: false,
+    secure: false, // В продакшене (https) нужно будет поставить true
     maxAge: 8 * 60 * 60,
   });
 
@@ -181,6 +292,15 @@ fastify.register(async (apiRoutes) => {
 }, { prefix: '/api' }); // <-- ВАЖНО: новый префикс /api
 
 fastify.get('/news', async (request, reply) => {
+  // Получаем параметры из URL (по умолчанию: 1-я страница, 20 новостей)
+  const { page = 1, limit = 1 } = request.query;
+  const offset = (page - 1) * limit;
+
+  // 1. Узнаем общее количество новостей (исключая главную)
+  const countStmt = db.prepare("SELECT COUNT(*) as total FROM news WHERE status = 'approved' AND is_featured = 0");
+  const { total } = countStmt.get();
+  
+  // 2. Получаем порцию новостей для текущей страницы
   const stmt = db.prepare(`
     SELECT 
       news.*, 
@@ -189,11 +309,23 @@ fastify.get('/news', async (request, reply) => {
       (SELECT COUNT(*) FROM comments WHERE comments.news_id = news.id) as comment_count
     FROM news 
     LEFT JOIN categories ON news.category_id = categories.id 
-    WHERE news.status = 'approved' 
+    WHERE news.status = 'approved' AND news.is_featured = 0
     ORDER BY news.createdAt DESC
+    LIMIT ? OFFSET ?
   `);
-  const news = stmt.all();
-  return news;
+  
+  const news = stmt.all(limit, offset);
+
+  // 3. Возвращаем ответ с мета-данными пагинации
+  return {
+    data: news,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 });
 
 fastify.get('/news/:id', async (request, reply) => {
@@ -224,11 +356,22 @@ fastify.get('/news/:id', async (request, reply) => {
 
 fastify.get('/news/category/:slug', async (request, reply) => {
   const { slug } = request.params;
-  const catStmt = db.prepare('SELECT id FROM categories WHERE slug = ?');
+  const { page = 1, limit = 20 } = request.query;
+  const offset = (page - 1) * limit;
+
+  // 1. Находим ID категории
+  const catStmt = db.prepare('SELECT id, name FROM categories WHERE slug = ?');
   const category = catStmt.get(slug);
+  
   if (!category) {
     return reply.code(404).send({ error: 'Категория не найдена' });
   }
+
+  // 2. Считаем общее количество новостей в этой категории
+  const countStmt = db.prepare("SELECT COUNT(*) as total FROM news WHERE category_id = ? AND status = 'approved'");
+  const { total } = countStmt.get(category.id);
+
+  // 3. Загружаем порцию новостей
   const newsStmt = db.prepare(`
     SELECT 
       news.*, 
@@ -239,9 +382,22 @@ fastify.get('/news/category/:slug', async (request, reply) => {
     LEFT JOIN categories ON news.category_id = categories.id 
     WHERE news.category_id = ? AND news.status = 'approved'
     ORDER BY news.createdAt DESC
+    LIMIT ? OFFSET ?
   `);
-  const news = newsStmt.all(category.id);
-  return news;
+  
+  const news = newsStmt.all(category.id, limit, offset);
+
+  // 4. Возвращаем данные + пагинацию
+  return {
+    data: news,
+    categoryName: category.name, // Вернем имя, чтобы удобно показывать в заголовке
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 });
 
 fastify.get('/categories', async (request, reply) => {
@@ -403,19 +559,26 @@ fastify.register(async (adminRoutes) => {
         const parts = request.parts();
         for await (const part of parts) {
           if (part.file) {
-            // Это ФАЙЛ
             if (part.file.truncated) {
               return reply.code(413).send({ error: 'Файл слишком большой' });
             }
-            // Генерируем уникальное имя
-            const filename = Date.now() + '-' + part.filename.replace(/[^a-zA-Z0-9.-]/g, '');
+            
+            // 1. Меняем расширение на .webp, так как будем конвертировать
+            const filename = Date.now() + '-' + part.filename.replace(/[^a-zA-Z0-9.-]/g, '').replace(/\.[^/.]+$/, "") + '.webp';
             const savePath = path.join(__dirname, 'uploads', filename);
             
-            // Сохраняем файл на диск
-            await pump(part.file, fs.createWriteStream(savePath));
-            uploadedFilePath = `/uploads/${filename}`; // Этот путь пойдет в БД
+            // 2. Создаем поток трансформации (resize + convert to webp)
+            const transform = sharp()
+              .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true }) // Максимум 1200px, не растягиваем маленькие
+              .webp({ quality: 80 }); // Конвертация в WebP с качеством 80%
+
+            // 3. Пропускаем файл через sharp перед записью
+            await pump(part.file, transform, fs.createWriteStream(savePath));
             
-          } else {
+            uploadedFilePath = `/uploads/${filename}`; 
+          }
+
+           else {
             // Это текстовое ПОЛЕ
             data[part.fieldname] = part.value;
           }
@@ -501,11 +664,25 @@ fastify.register(async (adminRoutes) => {
         const parts = request.parts();
         for await (const part of parts) {
           if (part.file) {
-            const filename = Date.now() + '-' + part.filename.replace(/[^a-zA-Z0-9.-]/g, '');
+            if (part.file.truncated) {
+              return reply.code(413).send({ error: 'Файл слишком большой' });
+            }
+            
+            // 1. Меняем расширение на .webp, так как будем конвертировать
+            const filename = Date.now() + '-' + part.filename.replace(/[^a-zA-Z0-9.-]/g, '').replace(/\.[^/.]+$/, "") + '.webp';
             const savePath = path.join(__dirname, 'uploads', filename);
-            await pump(part.file, fs.createWriteStream(savePath));
-            uploadedFilePath = `/uploads/${filename}`;
-          } else {
+            
+            // 2. Создаем поток трансформации (resize + convert to webp)
+            const transform = sharp()
+              .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true }) // Максимум 1200px, не растягиваем маленькие
+              .webp({ quality: 80 }); // Конвертация в WebP с качеством 80%
+
+            // 3. Пропускаем файл через sharp перед записью
+            await pump(part.file, transform, fs.createWriteStream(savePath));
+            
+            uploadedFilePath = `/uploads/${filename}`; 
+          }
+           else {
             data[part.fieldname] = part.value;
           }
         }

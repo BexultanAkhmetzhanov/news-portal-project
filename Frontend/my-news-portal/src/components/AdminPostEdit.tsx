@@ -2,7 +2,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 // Эти интерфейсы нам понадобятся
 interface Article {
   id: number;
@@ -43,7 +44,7 @@ function AdminPostEdit() {
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
         const [articleRes, categoriesRes] = await Promise.all([
@@ -57,7 +58,7 @@ function AdminPostEdit() {
         setImageUrl(article.imageUrl || '');
         setCategoryId(article.category_id?.toString() || '');
         setIsFeatured(article.is_featured === 1);
-        
+
         setCategories(categoriesRes.data);
       } catch (err) {
         console.error(err);
@@ -80,16 +81,16 @@ function AdminPostEdit() {
     formData.append('content', content);
     formData.append('category_id', categoryId);
     formData.append('is_featured', isFeatured ? '1' : '0');
-    
-    formData.append('imageUrl', imageUrl); 
-    
+
+    formData.append('imageUrl', imageUrl);
+
     if (newFile) { // <-- Используется newFile
       formData.append('imageFile', newFile);
     }
-    
+
     try {
       await apiClient.put(`/admin/news/${id}`, formData);
-      
+
       setSuccess('Новость успешно обновлена!'); // <-- Используется setSuccess
       setNewFile(null); // <-- Используется setNewFile
       // (Можно добавить navigate('/admin') через 2 сек)
@@ -103,20 +104,21 @@ function AdminPostEdit() {
   if (loading) return <p>Загрузка редактора...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (success) return <p style={{ color: 'green' }}>{success}</p>; // Показываем успех
-
+ const [newContent, setNewContent] = useState('');
+ 
   return (
     <div style={{ maxWidth: '700px', margin: '20px auto' }}>
       <button onClick={() => navigate('/admin')}>&larr; Назад в Админ-панель</button>
       <h2>Редактирование новости (ID: {id})</h2>
-      
+
       {imageUrl && !newFile && ( // <-- Используется newFile
         <div>
           <p>Текущая картинка:</p>
           {/* Добавляем http://localhost:3001, если это локальный файл */}
-          <img 
-            src={imageUrl.startsWith('/uploads/') ? `http://localhost:3001${imageUrl}` : imageUrl} 
-            alt="Preview" 
-            style={{ maxWidth: '200px', height: 'auto', marginBottom: '10px' }} 
+          <img
+            src={imageUrl.startsWith('/uploads/') ? `http://localhost:3001${imageUrl}` : imageUrl}
+            alt="Preview"
+            style={{ maxWidth: '200px', height: 'auto', marginBottom: '10px' }}
           />
           <button type="button" onClick={() => setImageUrl('null')}>Удалить картинку</button>
         </div>
@@ -124,7 +126,7 @@ function AdminPostEdit() {
       {newFile && ( // <-- Используется newFile
         <p>Новый файл: {newFile.name}</p>
       )}
-      
+
       <form onSubmit={handleSave} style={{ display: 'grid', gap: '10px' }}>
         <input
           type="text"
@@ -132,7 +134,7 @@ function AdminPostEdit() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <select 
+        <select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >
@@ -143,28 +145,31 @@ function AdminPostEdit() {
             </option>
           ))}
         </select>
-        <textarea
-          rows={15}
-          placeholder="Содержание"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
+        <div style={{ marginBottom: '50px', height: '300px' }}> {/* Контейнер для высоты */}
+          <ReactQuill
+            theme="snow"
+            value={newContent}
+            onChange={setNewContent} // ReactQuill сам передает value, не event
+            placeholder="Напишите что-нибудь потрясающее..."
+            style={{ height: '250px' }}
+          />
+        </div>
         <input
           type="text"
           placeholder="URL Картинки (если нет файла)"
           value={imageUrl === 'null' ? '' : imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
         />
-        
+
         <label>ИЛИ Загрузить новый файл (заменит текущий):</label>
-        <input 
+        <input
           type="file"
           accept="image/*"
           onChange={(e) => setNewFile(e.target.files?.[0] || null)} // <-- Используется setNewFile
         />
         <div>
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             id="isFeaturedCheck"
             checked={isFeatured}
             onChange={(e) => setIsFeatured(e.target.checked)}

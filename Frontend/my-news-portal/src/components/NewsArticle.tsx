@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import Comments from './Comments';
+import { getImageUrl } from '../utils/imageUrl';
 
 interface Article {
   id: number;
@@ -61,26 +62,29 @@ function NewsArticle() {
   return (
     <article>
       <Link to="/">&larr; Назад к новостям</Link>
-      
+
       <h2>{article.title}</h2>
       <small style={{ color: '#777' }}>
-  Опубликовано: {new Date(article.createdAt).toLocaleString()} | 
-  Просмотров: {article.view_count} | 
-  Комментариев: {article.comment_count}
-</small>
+        Опубликовано: {new Date(article.createdAt).toLocaleString()} |
+        Просмотров: {article.view_count} |
+        Комментариев: {article.comment_count}
+      </small>
       {article.imageUrl && (
-        <img 
-          src={article.imageUrl} 
-          alt={article.title} 
-          style={{ maxWidth: '100%', height: 'auto', margin: '15px 0' }} 
+        <img
+          src={getImageUrl(article.imageUrl)}
+          alt={article.title}
+          style={{ maxWidth: '100%', height: 'auto', margin: '15px 0' }}
         />
       )}
       <p style={{ whiteSpace: 'pre-wrap' }}>
-        {article.content}
+        <div
+          className="article-content"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
       </p>
-      
+
       <small>Опубликовано: {new Date(article.createdAt).toLocaleString()}</small>
-  <Comments newsId={article.id} />
+      <Comments newsId={article.id} />
     </article>
   );
 }

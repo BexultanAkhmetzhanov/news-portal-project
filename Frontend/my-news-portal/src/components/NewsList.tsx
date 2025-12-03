@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import AdBanner from './AdBanner'; // Мы все еще используем баннер
+import { getImageUrl } from '../utils/imageUrl';
 
 // Интерфейсы (без изменений)
 interface Article {
@@ -28,6 +29,16 @@ interface PopularArticle {
     createdAt: string;
 }
 
+interface NewsResponse {
+  data: Article[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 // Вспомогательный компонент для форматирования времени (как на скриншоте "13:12")
 function formatTime(dateString: string) {
   const date = new Date(dateString);
@@ -37,78 +48,90 @@ function formatTime(dateString: string) {
 function NewsList() {
   const [featuredArticle, setFeaturedArticle] = useState<Article | null>(null);
   const [popularNews, setPopularNews] = useState<PopularArticle[]>([]);
+  
+  // Состояния для списка и пагинации
   const [regularNews, setRegularNews] = useState<Article[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 1. Загрузка статических блоков (Главная и Популярные) - только 1 раз при старте
   useEffect(() => {
-    const fetchAllNews = async () => {
+    const fetchStaticData = async () => {
+      try {
+        const [featuredRes, popularRes] = await Promise.all([
+          apiClient.get<Article | null>('/news/featured'),
+          apiClient.get<PopularArticle[]>('/news/popular')
+        ]);
+        setFeaturedArticle(featuredRes.data);
+        setPopularNews(popularRes.data);
+      } catch (err) {
+        console.error("Ошибка загрузки шапки:", err);
+      }
+    };
+    fetchStaticData();
+  }, []);
+
+  // 2. Загрузка ленты новостей (зависит от currentPage)
+  useEffect(() => {
+    const fetchNewsFeed = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        // Загружаем все 3 типа новостей параллельно
-        const [featuredRes, popularRes, regularRes] = await Promise.all([
-          apiClient.get<Article | null>('/news/featured'),
-          apiClient.get<PopularArticle[]>('/news/popular'),
-          apiClient.get<Article[]>('/news')
-        ]);
-
-        const featuredArticleData = featuredRes.data;
-        setFeaturedArticle(featuredArticleData);
-        setPopularNews(popularRes.data);
-
-        // Фильтруем обычные новости, чтобы убрать из них главную
-        let filteredNews = regularRes.data;
-        if (featuredArticleData) {
-          filteredNews = filteredNews.filter(
-            (article) => article.id !== featuredArticleData.id
-          );
+        // Запрашиваем конкретную страницу
+        const response = await apiClient.get<NewsResponse>(`/news?page=${currentPage}&limit=20`);
+        
+        setRegularNews(response.data.data);
+        setTotalPages(response.data.pagination.totalPages);
+        
+        // Скролл наверх списка при смене страницы (опционально)
+        if (currentPage > 1) {
+           window.scrollTo({ top: 400, behavior: 'smooth' });
         }
-        setRegularNews(filteredNews);
-
       } catch (err) {
-        console.error("Ошибка загрузки главной страницы:", err);
-        setError("Не удалось загрузить новости. Попробуйте позже.");
+        console.error("Ошибка загрузки ленты:", err);
+        setError("Не удалось загрузить новости.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAllNews();
-  }, []);
+    fetchNewsFeed();
+  }, [currentPage]); // <-- Перезапускать при смене страницы
 
-  if (loading) return <p>Загрузка новостей...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  // Обработчик смены страницы
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
-  // --- Готовим данные для сетки (как на скриншоте) ---
-
-  // Главная новость (уже в featuredArticle)
-
-  // 2 новости в левой колонке под главной
-  const mainGridNews = regularNews.slice(0, 2);
-
-  // "LIVE" новость (берем самую популярную)
-  const liveNews = popularNews.length > 0 ? popularNews[0] : null;
+  // --- Готовим данные для верстки ---
+  // (Код mainGridNews, liveNews, sidebarGridNews оставляем почти таким же)
+  const mainGridNews = regularNews.slice(0, 2); 
   
-  // 3 новости в правой колонке (берем остальные популярные + обычные)
-  const sidebarGridNews = [
-    ...popularNews.slice(1, 3), // 2-я и 3-я по популярности
-    ...regularNews.slice(2, 3)  // 1 из обычных
-  ].slice(0, 3); // Убедимся, что их не больше 3-х
+  // LIVE и Сайдбар берем из популярных, чтобы не зависеть от пагинации основной ленты
+  const liveNews = popularNews.length > 0 ? popularNews[0] : null;
+  const sidebarGridNews = popularNews.slice(1, 4); 
+
+  // Остальные новости для списка (все, что не попало в "сетку" под главной)
+  const feedList = regularNews.slice(2); 
+
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
   return (
     <div className="home-layout">
       
-      {/* --- ЛЕВАЯ КОЛОНКА --- */}
+      {/* ЛЕВАЯ КОЛОНКА */}
       <div className="main-feed">
         
-        {/* ГЛАВНАЯ НОВОСТЬ */}
-        {featuredArticle && (
+        {/* Блок с главной новостью (показываем только на 1-й странице) */}
+        {currentPage === 1 && featuredArticle && (
           <section className="featured-article">
             <Link to={`/news/${featuredArticle.id}`}>
               {featuredArticle.imageUrl && (
-                <img src={featuredArticle.imageUrl} alt={featuredArticle.title} />
+                <img src={getImageUrl(featuredArticle.imageUrl)} alt={featuredArticle.title} />
               )}
               <h2>{featuredArticle.title}</h2>
               <div className="article-meta">
@@ -119,71 +142,128 @@ function NewsList() {
           </section>
         )}
         
-        {/* СЕТКА ПОД ГЛАВНОЙ НОВОСТЬЮ */}
-        <section className="main-feed-grid">
-          {mainGridNews.map((article) => (
-            <article key={article.id} className="feed-grid-item">
-              <Link to={`/news/${article.id}`}>
-                {article.imageUrl && (
-                  <img src={article.imageUrl} alt={article.title} />
-                )}
-                {/* Показываем категорию, если она есть */}
-                {article.categoryName && (
-                  <small style={{ color: 'var(--accent-color)', fontWeight: 500 }}>
-                    {article.categoryName.toUpperCase()}
-                  </small>
-                )}
-                <h3>{article.title}</h3>
-                <div className="article-meta">
-                  {formatTime(article.createdAt)}
-                </div>
-              </Link>
-            </article>
-          ))}
+        {/* Сетка под главной (тоже только на 1-й странице) */}
+        {currentPage === 1 && (
+          <section className="main-feed-grid">
+            {mainGridNews.map((article) => (
+              <article key={article.id} className="feed-grid-item">
+                <Link to={`/news/${article.id}`}>
+                  {article.imageUrl && (
+                    <img src={getImageUrl(article.imageUrl)} alt={article.title} />
+                  )}
+                  <h3>{article.title}</h3>
+                  <div className="article-meta">{formatTime(article.createdAt)}</div>
+                </Link>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {/* ОСНОВНОЙ СПИСОК НОВОСТЕЙ */}
+        <section className="latest-news-list">
+          <h3 style={{ borderBottom: '2px solid var(--tengri-green)', paddingBottom: '10px', marginTop: '30px' }}>
+            {currentPage === 1 ? 'Последние новости' : `Страница ${currentPage}`}
+          </h3>
+          
+          {loading ? <p>Загрузка...</p> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Если 1-я страница, показываем список начиная с 3-й новости (первые 2 ушли в сетку) */}
+              {/* Если другая страница, показываем всё */}
+              {(currentPage === 1 ? feedList : regularNews).map((article) => (
+                <article key={article.id} className="news-item-row" style={{ display: 'flex', gap: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
+                  <div style={{ flex: '0 0 150px' }}>
+                     {article.imageUrl ? (
+                        <img 
+                          src={getImageUrl(article.imageUrl)} 
+                          alt={article.title}
+                          style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
+                        />
+                     ) : <div style={{ width: '100%', height: '100px', background: '#eee' }}></div>}
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 10px 0' }}>
+                      <Link to={`/news/${article.id}`} style={{ textDecoration: 'none', color: '#333' }}>
+                        {article.title}
+                      </Link>
+                    </h4>
+                    <small style={{ color: '#888' }}>
+                      {new Date(article.createdAt).toLocaleDateString()} {formatTime(article.createdAt)}
+                      {article.categoryName && ` • ${article.categoryName}`}
+                    </small>
+                    <p style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#555', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {/* Очищаем HTML теги для превью */}
+                      {article.content.replace(/<[^>]+>/g, '')}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* --- ПАГИНАЦИЯ --- */}
+          {totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px' }}>
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => handlePageChange(currentPage - 1)}
+                style={{ padding: '8px 16px', cursor: 'pointer' }}
+              >
+                &larr; Назад
+              </button>
+              
+              {/* Генерируем кнопки страниц: [1] [2] [3] */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    fontWeight: currentPage === page ? 'bold' : 'normal',
+                    backgroundColor: currentPage === page ? 'var(--tengri-green)' : '#fff',
+                    color: currentPage === page ? '#fff' : '#333',
+                    border: '1px solid #ddd'
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button 
+                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
+                style={{ padding: '8px 16px', cursor: 'pointer' }}
+              >
+                Вперед &rarr;
+              </button>
+            </div>
+          )}
+
         </section>
       </div>
 
-      {/* --- ПРАВАЯ КОЛОНКА (САЙДБАР) --- */}
+      {/* ПРАВАЯ КОЛОНКА (без изменений) */}
       <aside className="sidebar">
-        
-        {/* "LIVE" БЛОК */}
         {liveNews && (
           <section className="sidebar-section sidebar-live">
             <Link to={`/news/${liveNews.id}`}>
               <div className="live-badge">LIVE</div>
               <h3>{liveNews.title}</h3>
-              <div className="article-meta">
-                {formatTime(liveNews.createdAt)} {/* (На самом деле у popular нет createdAt, берем из заглушки) */}
-              </div>
             </Link>
           </section>
         )}
-
-        {/* СЕТКА В САЙДБАРЕ */}
         <section className="sidebar-section">
           <div className="sidebar-grid">
             {sidebarGridNews.map((article) => (
               <article key={article.id} className="sidebar-grid-item">
                 <Link to={`/news/${article.id}`}>
-                   {article.imageUrl && (
-                    <img src={article.imageUrl} alt={article.title} />
-                  )}
-                  {article.categoryName && (
-                    <small style={{ color: 'var(--accent-color)', fontWeight: 500, fontSize: '0.8rem' }}>
-                      {article.categoryName.toUpperCase()}
-                    </small>
-                  )}
+                   {article.imageUrl && <img src={getImageUrl(article.imageUrl)} alt={article.title} />}
                   <h4>{article.title}</h4>
-                  <div className="article-meta">
-                    {formatTime(article.createdAt)}
-                  </div>
                 </Link>
               </article>
             ))}
           </div>
         </section>
-
-        {/* РЕКЛАМНЫЙ БАННЕР */}
         <AdBanner placement="sidebar" />
       </aside>
     </div>

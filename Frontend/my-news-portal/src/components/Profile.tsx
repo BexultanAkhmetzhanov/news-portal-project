@@ -1,9 +1,9 @@
-// src/components/Profile.tsx
+
 import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
 
-// (Этот интерфейс дублируется из AuthContext, но это нормально)
+
 interface UserProfile {
   id: number;
   username: string;
@@ -13,7 +13,7 @@ interface UserProfile {
 }
 
 function Profile() {
-  const { user, login } = useAuth(); // login - это наш "setUser"
+  const { user, login } = useAuth();
   const [fullname, setFullname] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [loading, setLoading] = useState(true);
@@ -21,20 +21,18 @@ function Profile() {
   const [success, setSuccess] = useState<string | null>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
 
-  // 1. При загрузке страницы, берем свежие данные с сервера
+  
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
         setError(null);
-        // Используем новый API, который мы создали
+
         const response = await apiClient.get<UserProfile>('/api/profile'); 
         
-        // Заполняем стейты формы
         setFullname(response.data.fullname || '');
         setAvatarUrl(response.data.avatarUrl || '');
         
-        // Также обновляем AuthContext (на случай, если он устарел)
         login(response.data); 
 
       } catch (err) {
