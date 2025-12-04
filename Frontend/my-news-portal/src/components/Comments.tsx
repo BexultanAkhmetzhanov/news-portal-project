@@ -132,7 +132,12 @@ function Comments({ newsId }: CommentsProps) {
             <small style={{ marginLeft: '10px', color: '#777' }}>
               {new Date(comment.createdAt).toLocaleString()}
             </small>
-            <p style={{ margin: '5px 0 0 0' }}>{comment.content}</p>
+            <p style={{ 
+                margin: '5px 0 0 0', 
+                whiteSpace: 'pre-wrap',      /* Сохраняет переносы строк (Enter) */
+                overflowWrap: 'anywhere',    /* Принудительно ломает длинные слова */
+                wordBreak: 'break-word'      /* Дополнительная страховка для старых браузеров */
+            }}>{comment.content}</p>
           </div>
         ))}
       </div>
