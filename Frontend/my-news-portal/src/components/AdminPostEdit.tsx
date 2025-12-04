@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
-// Эти интерфейсы нам понадобятся
+
 interface Article {
   id: number;
   title: string;
@@ -25,7 +25,9 @@ function AdminPostEdit() {
 
   // Стейты для формы
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  // const [content, setContent] = useState(''); // <-- УБРАЛИ старый content, используем newContent для редактора
+  const [newContent, setNewContent] = useState(''); // <-- ✅ ПЕРЕНЕСЛИ СЮДА (теперь это content)
+  
   const [imageUrl, setImageUrl] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
@@ -35,10 +37,8 @@ function AdminPostEdit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- ВОТ ЭТИ СТРОКИ, СКОРЕЕ ВСЕГО, ОТСУТСТВУЮТ ---
   const [success, setSuccess] = useState<string | null>(null);
   const [newFile, setNewFile] = useState<File | null>(null);
-  // ---
 
   // 1. Загружаем данные поста и категории
   useEffect(() => {
@@ -54,7 +54,7 @@ function AdminPostEdit() {
 
         const article = articleRes.data;
         setTitle(article.title);
-        setContent(article.content);
+        setNewContent(article.content); // <-- Заполняем редактор
         setImageUrl(article.imageUrl || '');
         setCategoryId(article.category_id?.toString() || '');
         setIsFeatured(article.is_featured === 1);
@@ -74,26 +74,28 @@ function AdminPostEdit() {
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null); // <-- Используется setSuccess
+    setSuccess(null);
 
     const formData = new FormData();
     formData.append('title', title);
-    formData.append('content', content);
+    formData.append('content', newContent); // <-- Отправляем newContent из редактора
     formData.append('category_id', categoryId);
     formData.append('is_featured', isFeatured ? '1' : '0');
 
+    // Если пользователь не менял картинку, imageUrl останется старым URL
+    // Если менял через input URL, будет новый URL
     formData.append('imageUrl', imageUrl);
 
-    if (newFile) { // <-- Используется newFile
+    if (newFile) {
       formData.append('imageFile', newFile);
     }
 
     try {
       await apiClient.put(`/admin/news/${id}`, formData);
 
-      setSuccess('Новость успешно обновлена!'); // <-- Используется setSuccess
-      setNewFile(null); // <-- Используется setNewFile
-      // (Можно добавить navigate('/admin') через 2 сек)
+      setSuccess('Новость успешно обновлена!');
+      setNewFile(null);
+      // setTimeout(() => navigate('/admin'), 1500); // Можно раскомментировать для авто-перехода
 
     } catch (err) {
       console.error(err);
@@ -101,20 +103,19 @@ function AdminPostEdit() {
     }
   };
 
+  // 3. Условный рендеринг идет ТОЛЬКО ПОСЛЕ всех хуков
   if (loading) return <p>Загрузка редактора...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
-  if (success) return <p style={{ color: 'green' }}>{success}</p>; // Показываем успех
- const [newContent, setNewContent] = useState('');
- 
+  if (success) return <p style={{ color: 'green' }}>{success}</p>;
+
   return (
     <div style={{ maxWidth: '700px', margin: '20px auto' }}>
       <button onClick={() => navigate('/admin')}>&larr; Назад в Админ-панель</button>
       <h2>Редактирование новости (ID: {id})</h2>
 
-      {imageUrl && !newFile && ( // <-- Используется newFile
+      {imageUrl && !newFile && (
         <div>
           <p>Текущая картинка:</p>
-          {/* Добавляем http://localhost:3001, если это локальный файл */}
           <img
             src={imageUrl.startsWith('/uploads/') ? `http://localhost:3001${imageUrl}` : imageUrl}
             alt="Preview"
@@ -123,7 +124,7 @@ function AdminPostEdit() {
           <button type="button" onClick={() => setImageUrl('null')}>Удалить картинку</button>
         </div>
       )}
-      {newFile && ( // <-- Используется newFile
+      {newFile && (
         <p>Новый файл: {newFile.name}</p>
       )}
 
@@ -145,15 +146,18 @@ function AdminPostEdit() {
             </option>
           ))}
         </select>
-        <div style={{ marginBottom: '50px', height: '300px' }}> {/* Контейнер для высоты */}
+        
+        {/* Редактор ReactQuill */}
+        <div style={{ marginBottom: '50px', height: '300px' }}> 
           <ReactQuill
             theme="snow"
             value={newContent}
-            onChange={setNewContent} // ReactQuill сам передает value, не event
+            onChange={setNewContent} 
             placeholder="Напишите что-нибудь потрясающее..."
             style={{ height: '250px' }}
           />
         </div>
+
         <input
           type="text"
           placeholder="URL Картинки (если нет файла)"
@@ -165,7 +169,7 @@ function AdminPostEdit() {
         <input
           type="file"
           accept="image/*"
-          onChange={(e) => setNewFile(e.target.files?.[0] || null)} // <-- Используется setNewFile
+          onChange={(e) => setNewFile(e.target.files?.[0] || null)}
         />
         <div>
           <input

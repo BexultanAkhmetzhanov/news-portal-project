@@ -10,19 +10,19 @@ const register = async (request, reply) => {
   
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
   try {
-    // Проверяем, первый ли это пользователь (если да — делаем админом)
-    const countStmt = db.prepare('SELECT COUNT(*) as count FROM users');
-    const { count } = countStmt.get();
-    const role = (count === 0) ? 'admin' : 'user';
+    // Проверяем, есть ли пользователи вообще (первый станет админом)
+    const countRes = await db.query('SELECT COUNT(*) FROM users');
+    const role = (parseInt(countRes.rows[0].count) === 0) ? 'admin' : 'user';
 
-    const stmt = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
-    const info = stmt.run(username, hashedPassword, role);
+    // Создаем пользователя и сразу возвращаем его ID
+    const insertRes = await db.query(
+      'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id',
+      [username, hashedPassword, role]
+    );
     
-    request.log.info(`Создан новый пользователь: ${username}, Роль: ${role}`);
-    
-    return reply.code(201).send({ message: 'Пользователь создан', userId: info.lastInsertRowid });
+    return reply.code(201).send({ message: 'Пользователь создан', userId: insertRes.rows[0].id });
   } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (err.code === '23505') { // Код ошибки уникальности в Postgres
       return reply.code(409).send({ error: 'Имя пользователя занято' });
     }
     request.log.error(err);
@@ -33,8 +33,8 @@ const register = async (request, reply) => {
 const login = async (request, reply) => {
   const { username, password } = request.body;
   
-  const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-  const user = stmt.get(username);
+  const res = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+  const user = res.rows[0];
   
   if (!user) {
     return reply.code(401).send({ error: 'Неверные имя пользователя или пароль' });
@@ -54,7 +54,7 @@ const login = async (request, reply) => {
   reply.setCookie('accessToken', accessToken, {
     path: '/',
     httpOnly: true,
-    secure: false, // В продакшене true
+    secure: false, 
     maxAge: 8 * 60 * 60,
   });
 
@@ -64,7 +64,7 @@ const login = async (request, reply) => {
       username: user.username, 
       role: user.role,
       fullname: user.fullname,
-      avatarUrl: user.avatarUrl
+      avatarUrl: user["avatarUrl"] // В Postgres имена колонок с CamelCase нужно брать в кавычки при создании, или они становятся lowercase. Мы создали как "avatarUrl".
     } 
   };
 };
@@ -74,8 +74,4 @@ const logout = async (request, reply) => {
   return { message: 'Выход выполнен' };
 };
 
-module.exports = {
-  register,
-  login,
-  logout
-};
+module.exports = { register, login, logout };

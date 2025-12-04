@@ -60,6 +60,8 @@ fastify.register(require('./routes/authRoutes'));
 // Регистрируем newsRoutes в корне (prefix: '/'), так как внутри путей уже есть /news, /search и т.д.
 fastify.register(require('./routes/newsRoutes')); 
 
+fastify.register(require('./routes/userRoutes'), { prefix: '/api' });
+
 // --- ВРЕМЕННО: Admin Routes (оставляем тут, пока не вынесем отдельно) ---
 // В будущем это тоже стоит вынести в routes/adminRoutes.js
 fastify.register(require('./routes/adminRoutes'), { prefix: '/admin' }); // <-- Создай этот файл или оставь код из старого server.js

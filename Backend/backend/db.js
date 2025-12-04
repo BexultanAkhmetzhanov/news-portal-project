@@ -1,97 +1,85 @@
-const Database = require('better-sqlite3');
-const db = new Database('news.db', { verbose: console.log });
+const { Pool } = require('pg');
 
-// Создаем таблицы при первом запуске
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',
-    refresh_token TEXT 
-  );
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+});
 
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    slug TEXT UNIQUE NOT NULL
-  );
+const initDb = async () => {
+  try {
+    // 1. Создаем таблицы
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        refresh_token TEXT,
+        fullname TEXT,
+        "avatarUrl" TEXT
+      );
 
-  CREATE TABLE IF NOT EXISTS news (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    imageUrl TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    category_id INTEGER,
-    is_featured INTEGER DEFAULT 0,
-    view_count INTEGER DEFAULT 0,
-    FOREIGN KEY (category_id) REFERENCES categories (id)
-  );
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL
+      );
 
-  CREATE TABLE IF NOT EXISTS ads (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    placement TEXT NOT NULL,
-    adCode TEXT NOT NULL
-  );
+      CREATE TABLE IF NOT EXISTS news (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        "imageUrl" TEXT,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        category_id INTEGER REFERENCES categories(id),
+        is_featured INTEGER DEFAULT 0,
+        view_count INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'approved' NOT NULL
+      );
 
-  CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    news_id INTEGER NOT NULL,
-    author TEXT NOT NULL,
-    content TEXT NOT NULL,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (news_id) REFERENCES news (id) ON DELETE CASCADE
-  );
-`);
+      CREATE TABLE IF NOT EXISTS ads (
+        id SERIAL PRIMARY KEY,
+        placement TEXT NOT NULL,
+        "adCode" TEXT NOT NULL
+      );
 
+      CREATE TABLE IF NOT EXISTS comments (
+        id SERIAL PRIMARY KEY,
+        news_id INTEGER NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+        author TEXT NOT NULL,
+        content TEXT NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-/* --- НОВЫЙ КОД (ВСТАВИТЬ ПОСЛЕ db.exec) --- */
-try {
-  // Добавляем колонку 'status' для модерации
-  db.exec(`
-    ALTER TABLE news ADD COLUMN status TEXT DEFAULT 'approved' NOT NULL;
-  `);
-  // Сразу делаем все старые новости 'approved' (одобренными)
-  db.exec(`
-    UPDATE news SET status = 'approved' WHERE status IS NULL;
-  `);
-  console.log('Таблица "news" успешно обновлена (status).');
-} catch (err) {
-  if (!err.message.includes('duplicate column name')) {
-    console.error('Ошибка при обновлении таблицы news (status):', err);
+    // 2. Настраиваем Умный Поиск (С принудительным lower() для русских букв)
+    // 👇 ЗДЕСЬ ИЗМЕНЕНИЕ: используем lower()
+    await pool.query(`
+      ALTER TABLE news ADD COLUMN IF NOT EXISTS search_vector tsvector 
+      GENERATED ALWAYS AS (to_tsvector('russian', lower(title) || ' ' || lower(content))) STORED;
+    `).catch(() => {});
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_news_search ON news USING GIN(search_vector);
+    `);
+
+    // 3. Данные по умолчанию
+    const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
+    if (parseInt(catCheck.rows[0].count) === 0) {
+      await pool.query("INSERT INTO categories (name, slug) VALUES ($1, $2), ($3, $4), ($5, $6)", 
+        ['Политика', 'politics', 'Спорт', 'sport', 'Технологии', 'tech']);
+      console.log('Базовые категории добавлены.');
+    }
+
+    console.log('Успешное подключение к PostgreSQL и инициализация.');
+  } catch (err) {
+    console.error('Ошибка инициализации БД:', err);
   }
-}
+};
 
-try {
-  // Пытаемся добавить новые колонки в таблицу users
-  // 'IF NOT EXISTS' поддерживается в ALTER TABLE в SQLite
-  db.exec(`
-    ALTER TABLE users ADD COLUMN fullname TEXT;
-    ALTER TABLE users ADD COLUMN avatarUrl TEXT;
-  `);
-  console.log('Таблица "users" успешно обновлена (fullname, avatarUrl).');
-} catch (err) {
-  // Игнорируем ошибку, если колонки уже существуют
-  if (!err.message.includes('duplicate column name')) {
-    console.error('Ошибка при обновлении таблицы users:', err);
-  }
-}
+initDb();
 
-/* --- НОВЫЙ КОД (ВСТАВИТЬ ПОСЛЕ db.exec) --- */
-// Добавим несколько категорий по умолчанию, если их нет
-try {
-  const stmt = db.prepare('INSERT INTO categories (name, slug) VALUES (?, ?)');
-  stmt.run('Политика', 'politics');
-  stmt.run('Спорт', 'sport');
-  stmt.run('Технологии', 'tech');
-} catch (err) {
-  // Игнорируем ошибку, если они уже существуют (UNIQUE constraint)
-  if (!err.code.includes('UNIQUE')) {
-    console.error('Ошибка при добавлении категорий:', err);
-  }
-}
-/* --- КОНЕЦ НОВОГО КОДА --- */
-
-
-module.exports = db;
+module.exports = pool;

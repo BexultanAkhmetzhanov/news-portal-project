@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const fastify = require('fastify')({ logger: true });
-const db = require('./db.js');
+const db = require('./db(sqlite).js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
