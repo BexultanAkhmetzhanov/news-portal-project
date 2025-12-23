@@ -23,8 +23,10 @@ async function newsRoutes(fastify, options) {
   fastify.get('/news/category/:slug', newsController.getNewsByCategory);
   fastify.get('/news/:id', newsController.getNewsById);
   
+  
   // Комментарии
   fastify.get('/news/:id/comments', newsController.getComments);
+  
   fastify.post('/news/:id/comments', {
     schema: commentSchema,
     preHandler: fastify.checkPermission('user') 
@@ -43,6 +45,11 @@ async function newsRoutes(fastify, options) {
   fastify.get('/news/:id/vote-status', {
     preHandler: fastify.checkPermission('user')
   }, newsController.getUserVote);
+
+  // ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавили проверку токена (authenticate)
+  fastify.delete('/comments/:id', {
+    preHandler: [fastify.authenticate] 
+  }, newsController.deleteComment);
 }
 
 module.exports = newsRoutes;

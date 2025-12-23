@@ -96,7 +96,7 @@ function LoginForm() {
     }}>
       <Card 
         style={{ width: 400, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-        bordered={false}
+        variant="borderless"
       >
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <Title level={3} style={{ marginBottom: 5 }}>News Portal</Title>

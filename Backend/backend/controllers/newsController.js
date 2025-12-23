@@ -127,7 +127,9 @@ const getUserVote = async (request, reply) => {
 // --- КОММЕНТАРИИ (С ЛАЙКАМИ) ---
 const getComments = async (req, reply) => {
   const { id } = req.params;
-  
+  const { page = 1, limit = 5 } = req.query; // По умолчанию 5 веток на страницу
+  const offset = (page - 1) * limit;
+
   let userId = null;
   try {
     const parts = req.headers.authorization ? req.headers.authorization.split(' ') : [];
@@ -137,24 +139,60 @@ const getComments = async (req, reply) => {
     }
   } catch (e) {}
 
-  const sql = `
-    SELECT 
-      c.*,
-      u."avatarUrl",
-      u.fullname, -- <--- ДОБАВИЛИ ЭТО ПОЛЕ
-      COALESCE(SUM(CASE WHEN cv.value = 1 THEN 1 ELSE 0 END), 0)::int as likes,
-      COALESCE(SUM(CASE WHEN cv.value = -1 THEN 1 ELSE 0 END), 0)::int as dislikes,
-      (SELECT value FROM comment_votes WHERE comment_id = c.id AND user_id = $2) as user_vote
-    FROM comments c
-    LEFT JOIN users u ON c.author = u.username 
-    LEFT JOIN comment_votes cv ON c.id = cv.comment_id
-    WHERE c.news_id = $1
-    GROUP BY c.id, u."avatarUrl", u.fullname -- <--- И СЮДА ТОЖЕ
-    ORDER BY c."createdAt" DESC
-  `;
+  try {
+    // 1. Считаем общее количество КОРНЕВЫХ комментариев (для кнопки "Загрузить еще")
+    const countRes = await db.query(
+      'SELECT COUNT(*) FROM comments WHERE news_id = $1 AND parent_id IS NULL', 
+      [id]
+    );
+    const totalRoots = parseInt(countRes.rows[0].count);
 
-  const res = await db.query(sql, [id, userId]);
-  return res.rows;
+    // 2. Получаем ID корневых комментариев для ТЕКУЩЕЙ страницы
+    const rootsRes = await db.query(
+      `SELECT id FROM comments 
+       WHERE news_id = $1 AND parent_id IS NULL 
+       ORDER BY "createdAt" DESC 
+       LIMIT $2 OFFSET $3`,
+      [id, limit, offset]
+    );
+    
+    const rootIds = rootsRes.rows.map(r => r.id);
+
+    // Если на этой странице нет корней и это не первая страница, возвращаем пустоту
+    if (rootIds.length === 0) {
+      return { data: [], total: totalRoots };
+    }
+
+    // 3. Загружаем:
+    //    А) Корневые комментарии из списка rootIds
+    //    Б) ВСЕ ответы (parent_id IS NOT NULL), чтобы дерево строилось правильно
+    const sql = `
+      SELECT 
+        c.*,
+        u."avatarUrl",
+        u.fullname,
+        COALESCE(SUM(CASE WHEN cv.value = 1 THEN 1 ELSE 0 END), 0)::int as likes,
+        COALESCE(SUM(CASE WHEN cv.value = -1 THEN 1 ELSE 0 END), 0)::int as dislikes,
+        (SELECT value FROM comment_votes WHERE comment_id = c.id AND user_id = $2) as user_vote
+      FROM comments c
+      LEFT JOIN users u ON c.author = u.username 
+      LEFT JOIN comment_votes cv ON c.id = cv.comment_id
+      WHERE (c.id = ANY($3) OR (c.news_id = $1 AND c.parent_id IS NOT NULL))
+      GROUP BY c.id, u."avatarUrl", u.fullname
+      ORDER BY c."createdAt" DESC
+    `;
+
+    const commentsRes = await db.query(sql, [id, userId, rootIds]);
+    
+    return { 
+      data: commentsRes.rows, 
+      total: totalRoots 
+    };
+
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(500).send({ error: 'Ошибка загрузки комментариев' });
+  }
 };
 
 const createComment = async (req, reply) => {
@@ -252,8 +290,43 @@ const getNewsByCategory = async (req, reply) => {
   return result;
 };
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ УДАЛЕНИЯ
+const deleteComment = async (req, reply) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Берем ID юзера из req.user (его туда положил плагин авторизации)
+    // Внимание: мы используем ||, чтобы поддержать разные форматы пейлоада токена
+    const userId = req.user.userId || req.user.id;
+
+    if (!userId) {
+       return reply.code(401).send({ error: 'Не удалось определить пользователя' });
+    }
+
+    // 2. Проверяем роль в базе данных (действительно ли Админ?)
+    const userRes = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0];
+
+    // Только админ может удалять
+    if (!user || user.role !== 'admin') {
+      return reply.code(403).send({ error: 'Только админ может удалять комментарии' });
+    }
+
+    // 3. Удаляем комментарий
+    // Если есть ответы, они тоже удалятся (если настроен CASCADE)
+    // Если нет CASCADE, удаление может упасть, но чаще всего он есть.
+    await db.query('DELETE FROM comments WHERE id = $1', [id]);
+
+    return { success: true };
+
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(500).send({ error: 'Ошибка при удалении' });
+  }
+};
+
 module.exports = {
   getNewsList, getNewsById, getCategories, getAds, getPopularNews,
   getFeaturedNews, getNewsByCategory, searchNews, getComments, createComment,
-  voteNews, getUserVote, voteComment // Добавили voteComment
+  voteNews, getUserVote, voteComment, deleteComment 
 };
