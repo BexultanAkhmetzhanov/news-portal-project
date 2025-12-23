@@ -1,42 +1,47 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/apiClient';
+// ВОТ ЭТА СТРОКА БЫЛА ПРОПУЩЕНА:
+import { getImageUrl } from '../utils/imageUrl'; 
+import ImgCrop from 'antd-img-crop'; 
 import { 
   Card, Avatar, Typography, Tag, Row, Col, Tabs, 
-  Form, Input, Button, message, Statistic, Divider, Space 
+  Form, Input, Button, message, Statistic, Divider, Space, Upload 
 } from 'antd';
 import { 
   UserOutlined, MailOutlined, SafetyOutlined, 
-  LockOutlined, SaveOutlined, EditOutlined, CrownOutlined 
+  LockOutlined, SaveOutlined, EditOutlined, CrownOutlined,
+  UploadOutlined, CameraOutlined
 } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
 
 const { Title, Text } = Typography;
 
 function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  
   const [formProfile] = Form.useForm();
   const [formPassword] = Form.useForm();
 
-  // Заполняем форму текущими данными при загрузке
   useEffect(() => {
     if (user) {
       formProfile.setFieldsValue({
         username: user.username,
-        fullname: user.fullname || '', // Предполагаем, что fullname может быть в объекте user
+        fullname: user.fullname || '',
       });
     }
   }, [user, formProfile]);
 
-  // Обработчик обновления профиля
   const handleUpdateProfile = async (values: any) => {
     setLoading(true);
     try {
-      // Пример запроса (нужно реализовать на бэкенде)
-      await apiClient.put(`/users/${user?.id}`, { 
+      await apiClient.put('/users/profile', { 
         fullname: values.fullname 
       });
       message.success('Профиль обновлен!');
+      if (user) login({ ...user, fullname: values.fullname });
     } catch (err) {
       console.error(err);
       message.error('Ошибка обновления профиля');
@@ -45,12 +50,10 @@ function Profile() {
     }
   };
 
-  // Обработчик смены пароля
   const handleChangePassword = async (values: any) => {
     setLoading(true);
     try {
-      // Пример запроса (нужно реализовать на бэкенде)
-      await apiClient.put(`/users/${user?.id}/password`, { 
+      await apiClient.put('/users/profile', { 
         password: values.newPassword 
       });
       message.success('Пароль успешно изменен');
@@ -63,9 +66,33 @@ function Profile() {
     }
   };
 
+  const handleAvatarUpload: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
+    setAvatarLoading(true);
+    const formData = new FormData();
+    formData.append('avatar', file as File);
+
+    try {
+      const response = await apiClient.post('/users/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      message.success('Аватар обновлен!');
+      
+      if (user && onSuccess) {
+        login({ ...user, avatarUrl: response.data.avatarUrl });
+        onSuccess("ok");
+      }
+    } catch (err) {
+      console.error(err);
+      message.error('Ошибка загрузки фото');
+      if (onError) onError(err as any);
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   if (!user) return <div style={{ padding: 50, textAlign: 'center' }}>Загрузка...</div>;
 
-  // Определение цвета роли
   const getRoleColor = (role: string) => {
     if (role === 'admin') return 'red';
     if (role === 'editor') return 'blue';
@@ -78,7 +105,6 @@ function Profile() {
     return <UserOutlined />;
   };
 
-  // Вкладки справа
   const tabItems = [
     {
       key: '1',
@@ -168,7 +194,6 @@ function Profile() {
     <div style={{ maxWidth: 1000, margin: '40px auto', padding: '0 20px' }}>
       <Row gutter={[24, 24]}>
         
-        {/* ЛЕВАЯ КОЛОНКА: Карточка пользователя */}
         <Col xs={24} md={8}>
           <Card 
             hoverable
@@ -182,16 +207,51 @@ function Profile() {
             }
           >
             <div style={{ marginTop: -60, marginBottom: 20 }}>
-              <Avatar 
-                size={100} 
-                icon={<UserOutlined />} 
-                style={{ 
-                  backgroundColor: '#fde3cf', 
-                  color: '#f56a00',
-                  border: '4px solid white',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                }} 
-              />
+              <ImgCrop 
+                rotationSlider 
+                showGrid 
+                aspect={1} 
+                quality={0.8}
+                modalTitle="Редактировать фото"
+                modalOk="Сохранить"
+                modalCancel="Отмена"
+              >
+                <Upload 
+                  customRequest={handleAvatarUpload}
+                  showUploadList={false}
+                  maxCount={1}
+                >
+                  <div style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }} title="Нажмите, чтобы изменить фото">
+                    <Avatar 
+                      size={100} 
+                      src={getImageUrl(user.avatarUrl)} 
+                      icon={<UserOutlined />} 
+                      style={{ 
+                        backgroundColor: '#fde3cf', 
+                        color: '#f56a00',
+                        border: '4px solid white',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      }} 
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 5,
+                      right: 5,
+                      background: '#1890ff',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: 28,
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid white'
+                    }}>
+                      {avatarLoading ? <UploadOutlined spin /> : <CameraOutlined />}
+                    </div>
+                  </div>
+                </Upload>
+              </ImgCrop>
             </div>
             
             <Title level={3} style={{ marginBottom: 5 }}>{user.fullname || user.username}</Title>
@@ -202,10 +262,15 @@ function Profile() {
             <Divider />
 
             <div style={{ textAlign: 'left' }}>
-               <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+               <Space 
+                 // @ts-ignore
+                 orientation="vertical" 
+                 size="middle" 
+                 style={{ width: '100%', display: 'flex', flexDirection: 'column' }}
+               >
                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <MailOutlined style={{ color: '#888' }} />
-                    <Text>user@{user.username}.com</Text> {/* Заглушка, если нет реального email */}
+                    <Text>user@{user.username}.com</Text>
                  </div>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <SafetyOutlined style={{ color: '#888' }} />
@@ -220,13 +285,11 @@ function Profile() {
           </Card>
         </Col>
 
-        {/* ПРАВАЯ КОЛОНКА: Настройки */}
         <Col xs={24} md={16}>
           <Card>
             <Tabs defaultActiveKey="1" items={tabItems} size="large" />
           </Card>
 
-          {/* Пример блока статистики (можно убрать, если не нужно) */}
           {(user.role === 'admin' || user.role === 'editor') && (
             <Card style={{ marginTop: 24 }} title="Ваша статистика">
               <Row gutter={16} style={{ textAlign: 'center' }}>
