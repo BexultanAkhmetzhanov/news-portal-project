@@ -50,6 +50,8 @@ async function newsRoutes(fastify, options) {
   fastify.delete('/comments/:id', {
     preHandler: [fastify.authenticate] 
   }, newsController.deleteComment);
+
+  fastify.get('/rates', newsController.getExchangeRates);
 }
 
 module.exports = newsRoutes;

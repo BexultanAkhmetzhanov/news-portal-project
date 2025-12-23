@@ -2,6 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import apiClient from './api/apiClient';
 import { useAuth } from './context/AuthContext';
+// ВАЖНО: Добавляем импорт виджета
+import CurrencyWidget from './components/CurrencyWidget'; 
 
 interface Category {
   id: number;
@@ -44,31 +46,17 @@ function App() {
     <div className="app-container">
       <div className="top-bar">
         <div className="top-bar-content">
-          <NavLink
-            to="/"
-            className={({ isActive }) => isActive ? 'active' : ''}
-            end
-          >
+          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} end>
             Главная
           </NavLink>
 
-          {/* --- Яркая ссылка на КОМИКСЫ --- */}
-          <NavLink
-            to="/comics"
-            className={({ isActive }) => isActive ? 'active' : ''}
-            style={{ fontWeight: 'bold', color: '#ff7f50' }}
-          >
+          <NavLink to="/comics" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#ff7f50' }}>
             КОМИКСЫ
           </NavLink>
 
-          {/* --- Остальные категории (скрываем 'comics', чтобы не дублировалось) --- */}
           {!loading && categories.map((category) => (
             category.slug !== 'comics' && (
-              <NavLink
-                key={category.id}
-                to={`/category/${category.slug}`}
-                className={({ isActive }) => isActive ? 'active' : ''}
-              >
+              <NavLink key={category.id} to={`/category/${category.slug}`} className={({ isActive }) => isActive ? 'active' : ''}>
                 {category.name}
               </NavLink>
             )
@@ -80,7 +68,10 @@ function App() {
         <div className="header-logo">
           <Link to="/">MOЙ NEWS</Link>
         </div>
-        <div className="header-actions">
+        
+        {/* Добавил gap для отступов между элементами */}
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          
           <form onSubmit={handleSearchSubmit} className="header-search">
             <input
               type="text"
@@ -90,6 +81,9 @@ function App() {
             />
             <button type="submit">🔍</button>
           </form>
+
+          {/* Виджет валют */}
+          <CurrencyWidget />
 
           {user ? (
             <>

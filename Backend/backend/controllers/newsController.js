@@ -325,8 +325,50 @@ const deleteComment = async (req, reply) => {
   }
 };
 
+let cachedRates = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 3600 * 1000; // 1 час
+
+const getExchangeRates = async (req, reply) => {
+  try {
+    const now = Date.now();
+    
+    // Если кэш есть и он свежий — отдаем его
+    if (cachedRates && (now - lastFetchTime < CACHE_TTL)) {
+      return cachedRates;
+    }
+
+    // Иначе делаем запрос к внешнему API (базовая валюта USD)
+    // Используем встроенный fetch (доступен в Node.js 18+)
+    const response = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await response.json();
+
+    if (data && data.rates) {
+      // Формируем красивый объект для фронта
+      // Нам нужны курсы относительно USD, но мы можем пересчитать их как угодно
+      cachedRates = {
+        USD: 1,
+        EUR: data.rates.EUR,
+        RUB: data.rates.RUB,
+        KZT: data.rates.KZT,
+        CNY: data.rates.CNY,
+        updatedAt: now
+      };
+      lastFetchTime = now;
+      return cachedRates;
+    } else {
+      throw new Error('Не удалось получить данные');
+    }
+  } catch (err) {
+    req.log.error(err);
+    // Если упала ошибка, но есть старый кэш — вернем его
+    if (cachedRates) return cachedRates;
+    return reply.code(500).send({ error: 'Ошибка получения курсов валют' });
+  }
+};
+
 module.exports = {
   getNewsList, getNewsById, getCategories, getAds, getPopularNews,
   getFeaturedNews, getNewsByCategory, searchNews, getComments, createComment,
-  voteNews, getUserVote, voteComment, deleteComment 
+  voteNews, getUserVote, voteComment, deleteComment, getExchangeRates
 };

@@ -21,7 +21,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ComicsPage from './components/ComicsPage'; 
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  //<React.StrictMode>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -55,5 +55,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </Routes>
       </BrowserRouter>
     </AuthProvider>
-  </React.StrictMode>
+  //</React.StrictMode>
 );
