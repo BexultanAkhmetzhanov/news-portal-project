@@ -26,6 +26,9 @@ fastify.register(require('./plugins/auth'));
 
 // 3. Rate Limit (Простая защита)
 const requestCounts = new Map();
+
+setInterval(() => {requestCounts.clear(); }, 10 * 60 * 1000);
+
 fastify.addHook('onRequest', async (request, reply) => {
   const ip = request.ip || 'unknown';
   if (!requestCounts.has(ip)) {
@@ -41,7 +44,6 @@ fastify.addHook('onRequest', async (request, reply) => {
   }
 });
 
-// 4. Очистка данных (Sanitization)
 fastify.addHook('preHandler', async (request, reply) => {
   if (request.body && typeof request.body === 'object') {
     for (const key in request.body) {
@@ -57,14 +59,16 @@ fastify.addHook('preHandler', async (request, reply) => {
 
 // 5. Регистрация Роутов
 fastify.register(require('./routes/authRoutes'));
-// Регистрируем newsRoutes в корне (prefix: '/'), так как внутри путей уже есть /news, /search и т.д.
+
+// Регистрируем newsRoutes в корне
 fastify.register(require('./routes/newsRoutes')); 
 
-fastify.register(require('./routes/userRoutes'), { prefix: '/api' });
+// ИЗМЕНЕНИЕ ЗДЕСЬ: поменяли prefix с '/api' на '/users'
+// Теперь запросы PUT http://localhost:3001/users/1 будут работать
+fastify.register(require('./routes/userRoutes'), { prefix: '/users' });
 
-// --- ВРЕМЕННО: Admin Routes (оставляем тут, пока не вынесем отдельно) ---
-// В будущем это тоже стоит вынести в routes/adminRoutes.js
-fastify.register(require('./routes/adminRoutes'), { prefix: '/admin' }); // <-- Создай этот файл или оставь код из старого server.js
+// Админка
+fastify.register(require('./routes/adminRoutes'), { prefix: '/admin' });
 
 // Запуск
 const start = async () => {

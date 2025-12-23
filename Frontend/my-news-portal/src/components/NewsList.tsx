@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import AdBanner from './AdBanner'; // Мы все еще используем баннер
+import AdBanner from './AdBanner';
 import { getImageUrl } from '../utils/imageUrl';
 
-// Интерфейсы (без изменений)
+// Интерфейсы
 interface Article {
     id: number;
     title: string;
@@ -39,9 +39,10 @@ interface NewsResponse {
   };
 }
 
-// Вспомогательный компонент для форматирования времени (как на скриншоте "13:12")
 function formatTime(dateString: string) {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -49,7 +50,6 @@ function NewsList() {
   const [featuredArticle, setFeaturedArticle] = useState<Article | null>(null);
   const [popularNews, setPopularNews] = useState<PopularArticle[]>([]);
   
-  // Состояния для списка и пагинации
   const [regularNews, setRegularNews] = useState<Article[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,15 +57,24 @@ function NewsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Загрузка статических блоков (Главная и Популярные) - только 1 раз при старте
+  // 1. Загрузка статических блоков (Исправлено!)
   useEffect(() => {
     const fetchStaticData = async () => {
       try {
+        // Мы ожидаем массив (Article[]), так как сервер возвращает список
         const [featuredRes, popularRes] = await Promise.all([
-          apiClient.get<Article | null>('/news/featured'),
+          apiClient.get<Article[]>('/news/featured'), 
           apiClient.get<PopularArticle[]>('/news/popular')
         ]);
-        setFeaturedArticle(featuredRes.data);
+        
+        // БЕРЕМ ПЕРВУЮ НОВОСТЬ ИЗ МАССИВА
+        const featData = featuredRes.data;
+        if (Array.isArray(featData) && featData.length > 0) {
+            setFeaturedArticle(featData[0]);
+        } else {
+            setFeaturedArticle(null);
+        }
+
         setPopularNews(popularRes.data);
       } catch (err) {
         console.error("Ошибка загрузки шапки:", err);
@@ -74,18 +83,16 @@ function NewsList() {
     fetchStaticData();
   }, []);
 
-  // 2. Загрузка ленты новостей (зависит от currentPage)
+  // 2. Загрузка ленты новостей
   useEffect(() => {
     const fetchNewsFeed = async () => {
       try {
         setLoading(true);
-        // Запрашиваем конкретную страницу
         const response = await apiClient.get<NewsResponse>(`/news?page=${currentPage}&limit=20`);
         
         setRegularNews(response.data.data);
         setTotalPages(response.data.pagination.totalPages);
         
-        // Скролл наверх списка при смене страницы (опционально)
         if (currentPage > 1) {
            window.scrollTo({ top: 400, behavior: 'smooth' });
         }
@@ -98,24 +105,17 @@ function NewsList() {
     };
 
     fetchNewsFeed();
-  }, [currentPage]); // <-- Перезапускать при смене страницы
+  }, [currentPage]);
 
-  // Обработчик смены страницы
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
     }
   };
 
-  // --- Готовим данные для верстки ---
-  // (Код mainGridNews, liveNews, sidebarGridNews оставляем почти таким же)
   const mainGridNews = regularNews.slice(0, 2); 
-  
-  // LIVE и Сайдбар берем из популярных, чтобы не зависеть от пагинации основной ленты
   const liveNews = popularNews.length > 0 ? popularNews[0] : null;
   const sidebarGridNews = popularNews.slice(1, 4); 
-
-  // Остальные новости для списка (все, что не попало в "сетку" под главной)
   const feedList = regularNews.slice(2); 
 
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
@@ -123,10 +123,9 @@ function NewsList() {
   return (
     <div className="home-layout">
       
-      {/* ЛЕВАЯ КОЛОНКА */}
       <div className="main-feed">
         
-        {/* Блок с главной новостью (показываем только на 1-й странице) */}
+        {/* Главная новость */}
         {currentPage === 1 && featuredArticle && (
           <section className="featured-article">
             <Link to={`/news/${featuredArticle.id}`}>
@@ -142,7 +141,7 @@ function NewsList() {
           </section>
         )}
         
-        {/* Сетка под главной (тоже только на 1-й странице) */}
+        {/* Сетка под главной */}
         {currentPage === 1 && (
           <section className="main-feed-grid">
             {mainGridNews.map((article) => (
@@ -159,7 +158,7 @@ function NewsList() {
           </section>
         )}
 
-        {/* ОСНОВНОЙ СПИСОК НОВОСТЕЙ */}
+        {/* Список новостей */}
         <section className="latest-news-list">
           <h3 style={{ borderBottom: '2px solid var(--tengri-green)', paddingBottom: '10px', marginTop: '30px' }}>
             {currentPage === 1 ? 'Последние новости' : `Страница ${currentPage}`}
@@ -167,8 +166,6 @@ function NewsList() {
           
           {loading ? <p>Загрузка...</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Если 1-я страница, показываем список начиная с 3-й новости (первые 2 ушли в сетку) */}
-              {/* Если другая страница, показываем всё */}
               {(currentPage === 1 ? feedList : regularNews).map((article) => (
                 <article key={article.id} className="news-item-row" style={{ display: 'flex', gap: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
                   <div style={{ flex: '0 0 150px' }}>
@@ -191,7 +188,6 @@ function NewsList() {
                       {article.categoryName && ` • ${article.categoryName}`}
                     </small>
                     <p style={{ margin: '5px 0 0 0', fontSize: '0.9rem', color: '#555', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {/* Очищаем HTML теги для превью */}
                       {article.content.replace(/<[^>]+>/g, '')}
                     </p>
                   </div>
@@ -200,18 +196,10 @@ function NewsList() {
             </div>
           )}
 
-          {/* --- ПАГИНАЦИЯ --- */}
+          {/* Пагинация */}
           {totalPages > 1 && (
             <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px' }}>
-              <button 
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
-                style={{ padding: '8px 16px', cursor: 'pointer' }}
-              >
-                &larr; Назад
-              </button>
-              
-              {/* Генерируем кнопки страниц: [1] [2] [3] */}
+              <button disabled={currentPage === 1} onClick={() => handlePageChange(currentPage - 1)} style={{ padding: '8px 16px', cursor: 'pointer' }}>&larr; Назад</button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
@@ -228,21 +216,12 @@ function NewsList() {
                   {page}
                 </button>
               ))}
-
-              <button 
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-                style={{ padding: '8px 16px', cursor: 'pointer' }}
-              >
-                Вперед &rarr;
-              </button>
+              <button disabled={currentPage === totalPages} onClick={() => handlePageChange(currentPage + 1)} style={{ padding: '8px 16px', cursor: 'pointer' }}>Вперед &rarr;</button>
             </div>
           )}
-
         </section>
       </div>
 
-      {/* ПРАВАЯ КОЛОНКА (без изменений) */}
       <aside className="sidebar">
         {liveNews && (
           <section className="sidebar-section sidebar-live">

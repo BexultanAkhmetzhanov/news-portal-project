@@ -3,9 +3,8 @@ const newsController = require('../controllers/newsController');
 const commentSchema = {
   body: {
     type: 'object',
-    required: ['author', 'content'],
+    required: ['content'], // author берем из токена или можно оставить, но лучше брать из user
     properties: {
-      author: { type: 'string', minLength: 2 },
       content: { type: 'string', minLength: 1 }
     }
   }
@@ -32,8 +31,11 @@ async function newsRoutes(fastify, options) {
   // Комментарии
   fastify.get('/news/:id/comments', newsController.getComments);
   
-  // ОСТАВЛЯЕМ ТОЛЬКО ЭТУ СТРОКУ (С ВАЛИДАЦИЕЙ)
-  fastify.post('/news/:id/comments', { schema: commentSchema }, newsController.createComment);
+  // ИЗМЕНЕНИЕ: Добавили preHandler для защиты (только авторизованные)
+  fastify.post('/news/:id/comments', {
+    schema: commentSchema,
+    preHandler: fastify.checkPermission('user') 
+  }, newsController.createComment);
 }
 
 module.exports = newsRoutes;

@@ -1,8 +1,7 @@
-// src/App.tsx
 import { useState, useEffect, type FormEvent } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import apiClient from './api/apiClient';
-import { useAuth } from './context/AuthContext'; // 1. Импортируем хук
+import { useAuth } from './context/AuthContext';
 
 interface Category {
   id: number;
@@ -16,7 +15,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
-  const { user } = useAuth(); // 2. Получаем пользователя из контекста
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -48,19 +47,31 @@ function App() {
           <NavLink
             to="/"
             className={({ isActive }) => isActive ? 'active' : ''}
-            end // 'end' нужен, чтобы эта ссылка не была активна на /category/sport
+            end
           >
             Главная
           </NavLink>
 
+          {/* --- Яркая ссылка на КОМИКСЫ --- */}
+          <NavLink
+            to="/comics"
+            className={({ isActive }) => isActive ? 'active' : ''}
+            style={{ fontWeight: 'bold', color: '#ff7f50' }}
+          >
+            КОМИКСЫ
+          </NavLink>
+
+          {/* --- Остальные категории (скрываем 'comics', чтобы не дублировалось) --- */}
           {!loading && categories.map((category) => (
-            <NavLink
-              key={category.id}
-              to={`/category/${category.slug}`}
-              className={({ isActive }) => isActive ? 'active' : ''} // Исправлен класс
-            >
-              {category.name}
-            </NavLink>
+            category.slug !== 'comics' && (
+              <NavLink
+                key={category.id}
+                to={`/category/${category.slug}`}
+                className={({ isActive }) => isActive ? 'active' : ''}
+              >
+                {category.name}
+              </NavLink>
+            )
           ))}
         </div>
       </div>
@@ -82,14 +93,12 @@ function App() {
 
           {user ? (
             <>
-              {/* --- НОВАЯ ПРОВЕРКА РОЛИ --- */}
               {(user.role === 'admin' || user.role === 'editor') && (
                 <Link to="/admin" className="admin-link">
                   Админка
                 </Link>
               )}
               
-              {/* Ссылка на профиль (с именем) */}
               <Link to="/profile" className="admin-link" style={{ fontWeight: 'bold', color: 'var(--tengri-green)' }}>
                 {user.username}
               </Link>
@@ -99,11 +108,16 @@ function App() {
               Войти
             </Link>
           )}
-        </div>     </header>
+        </div>
+      </header>
 
-      <main><Outlet /></main>
+      <main>
+        <Outlet />
+      </main>
 
-      <footer><p>Новости Беки</p></footer>
+      <footer>
+        <p>Новости Беки</p>
+      </footer>
     </div>
   );
 }

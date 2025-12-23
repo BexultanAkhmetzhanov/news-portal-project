@@ -1,6 +1,8 @@
-// src/components/CategoryManagement.tsx
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import apiClient from '../api/apiClient';
+import { Table, Button, Modal, Form, Input, message, Popconfirm, Space } from 'antd';
+import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 
 interface Category {
   id: number;
@@ -9,131 +11,110 @@ interface Category {
 }
 
 interface CategoryManagementProps {
-  categories: Category[]; // Получаем список от родителя
-  onCategoriesUpdate: () => void; // Функция для обновления списка у родителя
+  categories: Category[];
+  onCategoriesUpdate: () => void;
 }
 
 function CategoryManagement({ categories, onCategoriesUpdate }: CategoryManagementProps) {
-  const [error, setError] = useState<string | null>(null);
-  
-  // Стейты для формы создания
-  const [newName, setNewName] = useState('');
-  const [newSlug, setNewSlug] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [form] = Form.useForm();
 
-  // Стейт для редактирования (чтобы знать, какую строку мы меняем)
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editSlug, setEditSlug] = useState('');
+  const openModal = (category?: Category) => {
+    if (category) {
+      setEditingCategory(category);
+      form.setFieldsValue(category);
+    } else {
+      setEditingCategory(null);
+      form.resetFields();
+    }
+    setIsModalOpen(true);
+  };
 
-  // Обработчик создания
-  const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
+  const handleFinish = async (values: { name: string; slug: string }) => {
     try {
-      await apiClient.post('/admin/categories', { name: newName, slug: newSlug });
-      setNewName('');
-      setNewSlug('');
-      onCategoriesUpdate(); // Обновляем список у родителя
+      if (editingCategory) {
+        await apiClient.put(`/admin/categories/${editingCategory.id}`, values);
+        message.success('Категория обновлена');
+      } else {
+        await apiClient.post('/admin/categories', values);
+        message.success('Категория создана');
+      }
+      setIsModalOpen(false);
+      onCategoriesUpdate();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка при создании');
+      message.error(err.response?.data?.error || 'Ошибка');
     }
   };
 
-  // Обработчик удаления
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Удалить эту категорию?')) return;
-    setError(null);
     try {
       await apiClient.delete(`/admin/categories/${id}`);
+      message.success('Категория удалена');
       onCategoriesUpdate();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка при удалении');
-    }
-  };
-  
-  // Вход в режим редактирования
-  const startEdit = (category: Category) => {
-    setEditingId(category.id);
-    setEditName(category.name);
-    setEditSlug(category.slug);
-    setError(null);
-  };
-
-  // Сохранение изменений
-  const handleSaveEdit = async (id: number) => {
-    setError(null);
-    try {
-      await apiClient.put(`/admin/categories/${id}`, { name: editName, slug: editSlug });
-      setEditingId(null); // Выход из режима редактирования
-      onCategoriesUpdate();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка при обновлении');
+    } catch (err) {
+      message.error('Ошибка удаления');
     }
   };
 
+  const columns: ColumnsType<Category> = [
+    { title: 'ID', dataIndex: 'id', width: 60 },
+    { 
+      title: 'Название', 
+      dataIndex: 'name', 
+      // ИСПРАВЛЕНИЕ: Используем render для жирного шрифта, а не свойство fontWeight
+      render: (text) => <span style={{ fontWeight: 'bold' }}>{text}</span> 
+    },
+    { title: 'Slug (URL)', dataIndex: 'slug' },
+    {
+      title: 'Действия',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button icon={<EditOutlined />} onClick={() => openModal(record)} />
+          <Popconfirm title="Удалить категорию?" onConfirm={() => handleDelete(record.id)}>
+            <Button danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <section>
-      <h3>Управление Категориями</h3>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
+          Добавить категорию
+        </Button>
+      </div>
 
-      {/* Форма создания */}
-      <form onSubmit={handleCreate} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="Название (н.п. Политика)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Slug (н.п. politics)"
-          value={newSlug}
-          onChange={(e) => setNewSlug(e.target.value.toLowerCase().trim())}
-          required
-        />
-        <button type="submit">Создать</button>
-      </form>
+      <Table 
+        dataSource={categories} 
+        columns={columns} 
+        rowKey="id" 
+        pagination={false} 
+      />
 
-      {/* Список категорий */}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {categories.map((category) => (
-          <li key={category.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid #eee' }}>
-            {editingId === category.id ? (
-              // Режим редактирования
-              <>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                />
-                <input
-                  type="text"
-                  value={editSlug}
-                  onChange={(e) => setEditSlug(e.target.value)}
-                />
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <button onClick={() => handleSaveEdit(category.id)} style={{ backgroundColor: 'var(--tengri-green)', color: 'white' }}>Сохранить</button>
-                  <button onClick={() => setEditingId(null)}>Отмена</button>
-                </div>
-              </>
-            ) : (
-              // Обычный режим
-              <>
-                <span>
-                  <strong>{category.name}</strong> ({category.slug})
-                </span>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <button onClick={() => startEdit(category)} style={{ backgroundColor: '#007aff', color: 'white' }}>Изменить</button>
-                  <button onClick={() => handleDelete(category.id)} style={{ backgroundColor: '#ff4d4d', color: 'white' }}>Удалить</button>
-                </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
+      <Modal
+        title={editingCategory ? "Редактировать категорию" : "Новая категория"}
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        footer={null}
+      >
+        <Form form={form} layout="vertical" onFinish={handleFinish}>
+          <Form.Item name="name" label="Название" rules={[{ required: true }]}>
+            <Input placeholder="Например: Комиксы" />
+          </Form.Item>
+          <Form.Item name="slug" label="Slug (URL)" rules={[{ required: true }]}>
+            <Input placeholder="Например: comics" />
+          </Form.Item>
+          <div style={{ textAlign: 'right' }}>
+            <Button onClick={() => setIsModalOpen(false)} style={{ marginRight: 8 }}>Отмена</Button>
+            <Button type="primary" htmlType="submit">Сохранить</Button>
+          </div>
+        </Form>
+      </Modal>
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -9,77 +10,103 @@ const pool = new Pool({
 });
 
 const initDb = async () => {
+  const client = await pool.connect();
   try {
-    // 1. Создаем таблицы
-    await pool.query(`
+    console.log('📦 Проверка структуры БД...');
+
+    // 1. Таблица Пользователей
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'user',
-        refresh_token TEXT,
-        fullname TEXT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'user',
+        fullname VARCHAR(100),
         "avatarUrl" TEXT
       );
+    `);
 
+    // 2. Категории
+    await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        slug TEXT UNIQUE NOT NULL
+        name VARCHAR(50) NOT NULL,
+        slug VARCHAR(50) UNIQUE NOT NULL
       );
+    `);
 
+    // 3. Новости (Обрати внимание на кавычки в "createdAt" и "imageUrl")
+    await client.query(`
       CREATE TABLE IF NOT EXISTS news (
         id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
+        title VARCHAR(255) NOT NULL,
         content TEXT NOT NULL,
         "imageUrl" TEXT,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        category_id INTEGER REFERENCES categories(id),
+        category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
         is_featured INTEGER DEFAULT 0,
         view_count INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'approved' NOT NULL
+        status VARCHAR(20) DEFAULT 'approved',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
-      CREATE TABLE IF NOT EXISTS ads (
-        id SERIAL PRIMARY KEY,
-        placement TEXT NOT NULL,
-        "adCode" TEXT NOT NULL
-      );
+    // 4. Полнотекстовый поиск (search_vector)
+    // Добавляем колонку, если её нет (чтобы не было ошибок при повторном запуске)
+    await client.query(`
+      ALTER TABLE news ADD COLUMN IF NOT EXISTS search_vector tsvector 
+      GENERATED ALWAYS AS (to_tsvector('russian', lower(title) || ' ' || lower(content))) STORED;
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_news_search ON news USING GIN(search_vector);`);
 
+    // 5. Комментарии
+    await client.query(`
       CREATE TABLE IF NOT EXISTS comments (
         id SERIAL PRIMARY KEY,
-        news_id INTEGER NOT NULL REFERENCES news(id) ON DELETE CASCADE,
-        author TEXT NOT NULL,
+        news_id INTEGER REFERENCES news(id) ON DELETE CASCADE,
+        author VARCHAR(100),
         content TEXT NOT NULL,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-    // 2. Настраиваем Умный Поиск (С принудительным lower() для русских букв)
-    // 👇 ЗДЕСЬ ИЗМЕНЕНИЕ: используем lower()
-    await pool.query(`
-      ALTER TABLE news ADD COLUMN IF NOT EXISTS search_vector tsvector 
-      GENERATED ALWAYS AS (to_tsvector('russian', lower(title) || ' ' || lower(content))) STORED;
-    `).catch(() => {});
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_news_search ON news USING GIN(search_vector);
+    // 6. Теги
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tags (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(50) UNIQUE NOT NULL
+      );
     `);
 
-    // 3. Данные по умолчанию
-    const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
-    if (parseInt(catCheck.rows[0].count) === 0) {
-      await pool.query("INSERT INTO categories (name, slug) VALUES ($1, $2), ($3, $4), ($5, $6)", 
-        ['Политика', 'politics', 'Спорт', 'sport', 'Технологии', 'tech']);
-      console.log('Базовые категории добавлены.');
-    }
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS news_tags (
+        news_id INTEGER REFERENCES news(id) ON DELETE CASCADE,
+        tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (news_id, tag_id)
+      );
+    `);
 
-    console.log('Успешное подключение к PostgreSQL и инициализация.');
+    // 7. Реклама (если нужна)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255),
+        "imageUrl" TEXT,
+        link TEXT
+      );
+    `);
+
+    console.log('✅ База данных готова и структура верна!');
   } catch (err) {
-    console.error('Ошибка инициализации БД:', err);
+    console.error('❌ Ошибка инициализации БД:', err);
+  } finally {
+    client.release();
   }
 };
 
+// Запускаем инициализацию при старте
 initDb();
 
-module.exports = pool;
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  connect: () => pool.connect(),
+};

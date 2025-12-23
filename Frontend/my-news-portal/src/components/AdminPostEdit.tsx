@@ -1,191 +1,187 @@
-// src/components/AdminPostEdit.tsx
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 
-interface Article {
-  id: number;
-  title: string;
-  content: string;
-  imageUrl: string | null;
-  category_id: number | null;
-  is_featured: number;
-}
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
+import { 
+  Form, Input, Button, Select, Checkbox, Upload, 
+  Card, Spin, message, Image, Typography 
+} from 'antd';
+import { 
+  ArrowLeftOutlined, UploadOutlined, SaveOutlined, 
+  DeleteOutlined, FileImageOutlined 
+} from '@ant-design/icons';
+import type { UploadFile } from 'antd/es/upload/interface';
+
+const { Title } = Typography;
+const { Option } = Select;
 
 function AdminPostEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [form] = Form.useForm();
 
-  // Стейты для формы
-  const [title, setTitle] = useState('');
-  // const [content, setContent] = useState(''); // <-- УБРАЛИ старый content, используем newContent для редактора
-  const [newContent, setNewContent] = useState(''); // <-- ✅ ПЕРЕНЕСЛИ СЮДА (теперь это content)
-  
-  const [imageUrl, setImageUrl] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [isFeatured, setIsFeatured] = useState(false);
-
-  // Стейты для загрузки
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [content, setContent] = useState(''); 
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
 
-  const [success, setSuccess] = useState<string | null>(null);
-  const [newFile, setNewFile] = useState<File | null>(null);
-
-  // 1. Загружаем данные поста и категории
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
-
       try {
         setLoading(true);
         const [articleRes, categoriesRes] = await Promise.all([
-          apiClient.get<Article>(`/admin/news/${id}`),
-          apiClient.get<Category[]>('/categories')
+          apiClient.get<any>(`/admin/news/${id}`),
+          apiClient.get<any[]>('/categories')
         ]);
 
         const article = articleRes.data;
-        setTitle(article.title);
-        setNewContent(article.content); // <-- Заполняем редактор
-        setImageUrl(article.imageUrl || '');
-        setCategoryId(article.category_id?.toString() || '');
-        setIsFeatured(article.is_featured === 1);
+        
+        // Заполняем форму данными
+        form.setFieldsValue({
+          title: article.title,
+          category_id: article.category_id,
+          imageUrl: article.imageUrl,
+          is_featured: article.is_featured === 1,
+          tags: article.tags ? article.tags.map((t: any) => t.name) : []
+        });
 
+        // Важно: если контент null, ставим пустую строку
+        setContent(article.content || ''); 
+        setCurrentImageUrl(article.imageUrl);
         setCategories(categoriesRes.data);
+
       } catch (err) {
         console.error(err);
-        setError('Не удалось загрузить данные для редактирования.');
+        message.error('Не удалось загрузить данные новости');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, form]);
 
-  // 2. Обработчик сохранения
-  const handleSave = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
+  const onFinish = async (values: any) => {
+    // Проверка на пустоту (Quill иногда оставляет пустые теги)
+    if (!content || content.trim() === '' || content === '<p><br></p>') {
+      message.error('Контент не может быть пустым!');
+      return;
+    }
 
     const formData = new FormData();
-    formData.append('title', title);
-    formData.append('content', newContent); // <-- Отправляем newContent из редактора
-    formData.append('category_id', categoryId);
-    formData.append('is_featured', isFeatured ? '1' : '0');
+    formData.append('title', values.title);
+    formData.append('content', content);
+    formData.append('category_id', values.category_id);
+    formData.append('is_featured', values.is_featured ? '1' : '0');
+    
+    // Передаем теги как JSON строку
+    if (values.tags) {
+       formData.append('tags', JSON.stringify(values.tags));
+    }
 
-    // Если пользователь не менял картинку, imageUrl останется старым URL
-    // Если менял через input URL, будет новый URL
-    formData.append('imageUrl', imageUrl);
-
-    if (newFile) {
-      formData.append('imageFile', newFile);
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      formData.append('imageFile', fileList[0].originFileObj);
+    } else {
+      formData.append('imageUrl', values.imageUrl || '');
     }
 
     try {
       await apiClient.put(`/admin/news/${id}`, formData);
-
-      setSuccess('Новость успешно обновлена!');
-      setNewFile(null);
-      // setTimeout(() => navigate('/admin'), 1500); // Можно раскомментировать для авто-перехода
-
+      message.success('Новость обновлена!');
+      setTimeout(() => navigate('/admin'), 1000);
     } catch (err) {
       console.error(err);
-      setError('Ошибка при сохранении новости.');
+      message.error('Ошибка при сохранении');
     }
   };
 
-  // 3. Условный рендеринг идет ТОЛЬКО ПОСЛЕ всех хуков
-  if (loading) return <p>Загрузка редактора...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
-  if (success) return <p style={{ color: 'green' }}>{success}</p>;
+  const handleClearImage = () => {
+    setCurrentImageUrl(null);
+    form.setFieldValue('imageUrl', '');
+  };
+
+  const getFullImageUrl = (url: string | null) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `http://localhost:3001${url}`;
+  };
 
   return (
-    <div style={{ maxWidth: '700px', margin: '20px auto' }}>
-      <button onClick={() => navigate('/admin')}>&larr; Назад в Админ-панель</button>
-      <h2>Редактирование новости (ID: {id})</h2>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      
+      <div style={{ marginBottom: 20 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin')}>Назад</Button>
+        <Title level={2}>Редактирование новости #{id}</Title>
+      </div>
 
-      {imageUrl && !newFile && (
-        <div>
-          <p>Текущая картинка:</p>
-          <img
-            src={imageUrl.startsWith('/uploads/') ? `http://localhost:3001${imageUrl}` : imageUrl}
-            alt="Preview"
-            style={{ maxWidth: '200px', height: 'auto', marginBottom: '10px' }}
-          />
-          <button type="button" onClick={() => setImageUrl('null')}>Удалить картинку</button>
-        </div>
-      )}
-      {newFile && (
-        <p>Новый файл: {newFile.name}</p>
-      )}
+      {/* Показываем спиннер, если грузится */}
+      {loading && <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>}
 
-      <form onSubmit={handleSave} style={{ display: 'grid', gap: '10px' }}>
-        <input
-          type="text"
-          placeholder="Заголовок"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-        >
-          <option value="">-- Выберите категорию --</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-        
-        {/* Редактор ReactQuill */}
-        <div style={{ marginBottom: '50px', height: '300px' }}> 
-          <ReactQuill
-            theme="snow"
-            value={newContent}
-            onChange={setNewContent} 
-            placeholder="Напишите что-нибудь потрясающее..."
-            style={{ height: '250px' }}
-          />
-        </div>
+      {/* Форма всегда присутствует в DOM, но скрыта при загрузке (чтобы useForm не ругался) */}
+      <div style={{ display: loading ? 'none' : 'block' }}>
+        <Card hoverable variant="borderless">
+          <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ is_featured: false }}>
+            
+            <Form.Item name="title" label="Заголовок" rules={[{ required: true, message: 'Введите заголовок' }]}>
+              <Input size="large" />
+            </Form.Item>
 
-        <input
-          type="text"
-          placeholder="URL Картинки (если нет файла)"
-          value={imageUrl === 'null' ? '' : imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-        />
+            <Form.Item name="category_id" label="Категория" rules={[{ required: true, message: 'Выберите категорию' }]}>
+              <Select placeholder="Выберите категорию" size="large">
+                {categories.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+              </Select>
+            </Form.Item>
+            
+            <Form.Item name="tags" label="Теги">
+              <Select
+                mode="tags"
+                style={{ width: '100%' }}
+                placeholder="Введите теги (нажмите Enter)"
+                tokenSeparators={[',']}
+              />
+            </Form.Item>
 
-        <label>ИЛИ Загрузить новый файл (заменит текущий):</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setNewFile(e.target.files?.[0] || null)}
-        />
-        <div>
-          <input
-            type="checkbox"
-            id="isFeaturedCheck"
-            checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-          />
-          <label htmlFor="isFeaturedCheck" style={{ marginLeft: '5px' }}>
-            Сделать главной новостью
-          </label>
-        </div>
-        <button type="submit" style={{ backgroundColor: 'var(--accent-color)', color: 'white' }}>
-          Сохранить изменения
-        </button>
-      </form>
+            <Form.Item label="Содержание новости" required>
+              <ReactQuill theme="snow" value={content} onChange={setContent} style={{ height: '300px', marginBottom: '50px' }} />
+            </Form.Item>
+
+            <Card type="inner" title="Изображение" size="small" style={{ marginBottom: 24, background: '#fafafa' }}>
+              {/* Заменили Space на div с flex, чтобы убрать ошибку deprecated direction */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+                
+                {currentImageUrl && !fileList.length && (
+                  <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                    <Image width={200} src={getFullImageUrl(currentImageUrl)} />
+                    <Button danger icon={<DeleteOutlined />} onClick={handleClearImage}>Удалить / Заменить</Button>
+                  </div>
+                )}
+
+                <Form.Item label="Загрузить новый файл" style={{ marginBottom: 0 }}>
+                  <Upload beforeUpload={() => false} fileList={fileList} onChange={({ fileList }) => setFileList(fileList)} maxCount={1} listType="picture">
+                    <Button icon={<UploadOutlined />}>Выбрать файл</Button>
+                  </Upload>
+                </Form.Item>
+
+                <Form.Item name="imageUrl" label="Или ссылка на изображение" style={{ marginBottom: 0 }}>
+                  <Input prefix={<FileImageOutlined />} placeholder="https://..." />
+                </Form.Item>
+              </div>
+            </Card>
+
+            <Form.Item name="is_featured" valuePropName="checked">
+              <Checkbox>Сделать главной новостью</Checkbox>
+            </Form.Item>
+
+            <Form.Item>
+              <Button type="primary" htmlType="submit" icon={<SaveOutlined />} size="large">Сохранить изменения</Button>
+            </Form.Item>
+
+          </Form>
+        </Card>
+      </div>
     </div>
   );
 }
