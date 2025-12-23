@@ -1,5 +1,5 @@
 # news-portal-project
-News portal on React+Vite, Fastify, SQLite
+News portal on React+Vite, Fastify, Postgresql
 
 Инструкция по локальному запуску "Новостного Портала"
 
