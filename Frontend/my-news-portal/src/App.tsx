@@ -55,6 +55,12 @@ function App() {
             КОМИКСЫ
           </NavLink>
 
+          <NavLink to="/government" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#ff7f50' }}>
+            ПРАВИТЕЛЬСТВО
+          </NavLink>
+
+          
+
           {!loading && categories.map((category) => (
             category.slug !== 'comics' && (
               <NavLink key={category.id} to={`/category/${category.slug}`} className={({ isActive }) => isActive ? 'active' : ''}>

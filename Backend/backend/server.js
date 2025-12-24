@@ -71,6 +71,7 @@ fastify.addHook('preHandler', async (request, reply) => {
 // 5. Регистрация Роутов
 fastify.register(require('./routes/authRoutes'));
 fastify.register(require('./routes/newsRoutes')); 
+fastify.register(require('./routes/govRoutes'), { prefix: '/government' });
 // Префикс /users важен для работы профиля
 fastify.register(require('./routes/userRoutes'), { prefix: '/users' });
 fastify.register(require('./routes/adminRoutes'), { prefix: '/admin' });

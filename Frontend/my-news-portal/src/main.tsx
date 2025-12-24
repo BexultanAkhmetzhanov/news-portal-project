@@ -17,8 +17,9 @@ import Profile from './components/Profile';
 import AdminPostEdit from './components/AdminPostEdit';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import AdminGovStructure from './components/AdminGovStructure';
 import ComicsPage from './components/ComicsPage'; 
+import GovernmentPage from './components/GovernmentPage';
 
 // Твой Client ID
 const GOOGLE_CLIENT_ID = '868998184944-71dsjnt8nhe756k6ocihfe54fbf678ff.apps.googleusercontent.com';
@@ -36,11 +37,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               
               <Route path="comics" element={<ComicsPage />} />
               <Route path="category/comics" element={<ComicsPage />} />
-
+              <Route path="/government" element={<GovernmentPage />} />
               <Route path="news/:id" element={<NewsArticle />} />
               <Route path="category/:slug" element={<CategoryPage />} />
               <Route path="search" element={<SearchPage />} />
               <Route path="login" element={<LoginForm />} />
+
 
               {/* --- Защищенные роуты --- */}
               <Route element={<ProtectedRoute allowedRoles={['user', 'editor', 'admin']} />}>
@@ -50,6 +52,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route element={<ProtectedRoute allowedRoles={['editor', 'admin']} />}>
                 <Route path="admin" element={<AdminDashboard />} />
                 <Route path="admin/edit/:id" element={<AdminPostEdit />} />
+                <Route path="admin/government" element={<AdminGovStructure />} />
               </Route>
               
             </Route>

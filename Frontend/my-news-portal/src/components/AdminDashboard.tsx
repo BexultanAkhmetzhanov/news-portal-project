@@ -118,7 +118,6 @@ function AdminDashboard() {
     
     // --- ДОБАВЛЕНО: Отправка тегов ---
     if (values.tags) {
-        // Превращаем массив тегов в JSON строку, чтобы сервер мог её распарсить
         formData.append('tags', JSON.stringify(values.tags));
     }
     
@@ -198,7 +197,7 @@ function AdminDashboard() {
           )}
           {user?.role === 'admin' && (
              <Button size="small" onClick={() => handleMakeFeatured(record.id)}>
-               {record.is_featured === 1 ? 'Убрать ТОП' : 'В ТОП'}
+               {record.is_featured === 1 ? 'ТОП' : 'В ТОП'}
              </Button>
           )}
           <Popconfirm title="Удалить?" onConfirm={() => handleDelete(record.id)}>
@@ -244,7 +243,7 @@ function AdminDashboard() {
       },
       {
         key: 'stats',
-        label: 'Статистика', // Можно добавить эмодзи для красоты
+        label: 'Статистика',
         children: <StatisticsPanel />
       },
       {
@@ -272,6 +271,20 @@ function AdminDashboard() {
       </Header>
       
       <Content style={{ padding: '20px 50px' }}>
+        {/* 👇 Кнопка для перехода к Правительству (только для админов) */}
+        {user.role === 'admin' && (
+          <div style={{ marginBottom: 16 }}>
+            <Button 
+              type="dashed" 
+              size="large"
+              onClick={() => navigate('/admin/government')}
+              style={{ width: '100%' }}
+            >
+              🏛 Управление структурой Правительства
+            </Button>
+          </div>
+        )}
+
         <Card>
           <Tabs defaultActiveKey="1" items={items} />
         </Card>
@@ -295,7 +308,6 @@ function AdminDashboard() {
             </Select>
           </Form.Item>
           
-          {/* --- ДОБАВЛЕНО ПОЛЕ ДЛЯ ТЕГОВ --- */}
           <Form.Item name="tags" label="Теги">
             <Select
               mode="tags"
