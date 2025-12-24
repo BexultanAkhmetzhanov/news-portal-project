@@ -307,9 +307,80 @@ const deleteAd = async (request, reply) => {
   return { message: 'Реклама удалена' };
 };
 
+// --- ПОЛНАЯ СТАТИСТИКА (DASHBOARD) ---
+const getFullStats = async (request, reply) => {
+  try {
+    const client = await db.connect();
+
+    try {
+      // 1. РЕАЛЬНЫЕ ДАННЫЕ: Всего пользователей
+      const usersRes = await client.query('SELECT COUNT(*) FROM users');
+      const totalUsers = parseInt(usersRes.rows[0].count);
+
+      // 2. РЕАЛЬНЫЕ ДАННЫЕ: Топ статей по просмотрам
+      const popularNewsRes = await client.query(`
+        SELECT id, title, view_count, "createdAt"
+        FROM news 
+        WHERE status = 'approved'
+        ORDER BY view_count DESC 
+        LIMIT 5
+      `);
+
+      // 3. ИМИТАЦИЯ: Кто сейчас онлайн (случайное число от 5 до 15)
+      const onlineUsers = Math.floor(Math.random() * (15 - 5 + 1)) + 5;
+
+      // 4. ИМИТАЦИЯ: География (в будущем можно прикрутить GeoIP)
+      const geography = [
+        { country: 'Казахстан', city: 'Алматы', count: 120, percent: 60 },
+        { country: 'Казахстан', city: 'Астана', count: 45, percent: 22 },
+        { country: 'Россия', city: 'Москва', count: 15, percent: 8 },
+        { country: 'США', city: 'Нью-Йорк', count: 10, percent: 5 },
+        { country: 'Другие', city: '-', count: 10, percent: 5 },
+      ];
+
+      // 5. ИМИТАЦИЯ: Технологии
+      const devices = [
+        { type: 'Мобильные', percent: 65 },
+        { type: 'ПК (Desktop)', percent: 30 },
+        { type: 'Планшеты', percent: 5 },
+      ];
+
+      // 6. ИМИТАЦИЯ: Демография
+      const demographics = {
+        gender: { male: 55, female: 45 },
+        age: [
+          { range: '18-24', percent: 20 },
+          { range: '25-34', percent: 45 },
+          { range: '35-44', percent: 25 },
+          { range: '45+', percent: 10 },
+        ]
+      };
+
+      return {
+        audience: {
+          totalUsers,
+          onlineUsers,
+        },
+        content: {
+          popularNews: popularNewsRes.rows
+        },
+        geo: geography,
+        tech: devices,
+        demo: demographics
+      };
+
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    request.log.error(err);
+    return reply.code(500).send({ error: 'Ошибка получения статистики' });
+  }
+};
+
 module.exports = {
   getAllNews, featureNews, createNews, getNewsById, updateNews, deleteNews,
   getUsers, updateUserRole, getPendingNews, approveNews, 
   createCategory, updateCategory, deleteCategory,
-  createAd, deleteAd // Экспортируем новые функции
+  createAd, deleteAd, getFullStats
 };

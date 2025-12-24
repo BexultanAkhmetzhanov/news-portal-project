@@ -71,6 +71,10 @@ async function newsRoutes(fastify, options) {
   fastify.delete('/ads/:id', {
     preHandler: [fastify.authenticate, fastify.checkPermission('admin')]
   }, adminController.deleteAd);
+  
+  fastify.get('/admin/stats/full', {
+    preHandler: [fastify.authenticate, fastify.checkPermission('admin')]
+  }, adminController.getFullStats);
 }
 
 module.exports = newsRoutes;

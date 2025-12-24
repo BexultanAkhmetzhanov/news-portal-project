@@ -19,6 +19,7 @@ import type { ColumnsType } from 'antd/es/table';
 import CategoryManagement from './CategoryManagement';
 import UserManagement from './UserManagement';
 import AdsManager from '../components/AdsManager';
+import StatisticsPanel from './StatisticsPanel';
 
 const { Header, Content } = Layout;
 const { Option } = Select;
@@ -242,10 +243,16 @@ function AdminDashboard() {
         children: <CategoryManagement categories={categories} onCategoriesUpdate={fetchData} />
       },
       {
+        key: 'stats',
+        label: 'Статистика', // Можно добавить эмодзи для красоты
+        children: <StatisticsPanel />
+      },
+      {
         key: '3',
         label: 'Пользователи',
         children: <UserManagement />
       },
+
       {
         key: '4',
         label: 'Реклама',
