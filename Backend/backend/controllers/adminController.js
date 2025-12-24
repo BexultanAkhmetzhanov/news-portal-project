@@ -13,20 +13,16 @@ const saveTags = async (newsId, tagsArray) => {
   for (const tagName of tagsArray) {
     const cleanTag = tagName.trim();
     if (!cleanTag) continue;
-    // 1. Создаем тег (Postgres: ON CONFLICT DO NOTHING)
     await db.query('INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [cleanTag]);
-    // 2. Получаем ID
     const tagRes = await db.query('SELECT id FROM tags WHERE name = $1', [cleanTag]);
     if (tagRes.rows.length > 0) {
       const tagId = tagRes.rows[0].id;
-      // 3. Связываем
       await db.query('INSERT INTO news_tags (news_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [newsId, tagId]);
     }
   }
 };
 
 const getAllNews = async (request, reply) => {
-  // ИСПРАВЛЕНО: "createdAt" в кавычках
   const res = await db.query(`
     SELECT news.id, news.title, news.is_featured, news.status, news.view_count, categories.name as "categoryName", news."createdAt"
     FROM news
@@ -87,15 +83,12 @@ const createNews = async (request, reply) => {
       await db.query('UPDATE news SET is_featured = 0 WHERE is_featured = 1');
     }
     
-    // ИСПРАВЛЕНО: "imageUrl" в кавычках
     const res = await db.query(
       'INSERT INTO news (title, content, "imageUrl", category_id, is_featured, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
       [title, content, finalImageUrl, category_id || null, is_featured === '1' ? 1 : 0, status]
     );
     
     const newsId = res.rows[0].id;
-
-    // Сохраняем теги
     let tags = [];
     if (data.tags) {
        try { tags = JSON.parse(data.tags); } catch(e) { tags = [data.tags]; }
@@ -119,7 +112,6 @@ const getNewsById = async (request, reply) => {
   if (res.rows.length === 0) return reply.code(404).send({ error: 'Новость не найдена' });
   
   const newsItem = res.rows[0];
-  // Подгружаем теги
   try {
     const tagsRes = await db.query(`
         SELECT t.name FROM tags t 
@@ -130,7 +122,6 @@ const getNewsById = async (request, reply) => {
   } catch(e) {
     newsItem.tags = [];
   }
-
   return newsItem;
 };
 
@@ -174,7 +165,6 @@ const updateNews = async (request, reply) => {
       await client.query('UPDATE news SET is_featured = 0 WHERE is_featured = 1 AND id != $1', [id]);
     }
 
-    // ИСПРАВЛЕНО: "imageUrl" в кавычках
     const res = await client.query(
       `UPDATE news SET 
         title = $1, 
@@ -186,7 +176,6 @@ const updateNews = async (request, reply) => {
       [title, content, finalImageUrl, category_id || null, is_featured === '1' ? 1 : 0, id]
     );
 
-    // Сохраняем теги
     let tags = [];
     if (data.tags) {
        try { tags = JSON.parse(data.tags); } catch(e) { tags = [data.tags]; }
@@ -226,7 +215,6 @@ const updateUserRole = async (request, reply) => {
 };
 
 const getPendingNews = async (request, reply) => {
-  // ИСПРАВЛЕНО: "createdAt" в кавычках
   const res = await db.query(`
     SELECT news.*, categories.name as "categoryName" 
     FROM news LEFT JOIN categories ON news.category_id = categories.id 
@@ -278,7 +266,50 @@ const deleteCategory = async (request, reply) => {
   }
 };
 
+// --- РЕКЛАМА (НОВОЕ) ---
+const createAd = async (request, reply) => {
+  let uploadedFilePath = null;
+  const data = {};
+
+  try {
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.file) {
+        const filename = 'ad-' + Date.now() + '-' + part.filename.replace(/[^a-zA-Z0-9.-]/g, '') + '.webp';
+        const savePath = path.join(__dirname, '..', 'uploads', filename);
+        await pump(part.file, sharp().resize({ width: 800, fit: 'inside' }).webp(), fs.createWriteStream(savePath));
+        uploadedFilePath = `/uploads/${filename}`;
+      } else {
+        data[part.fieldname] = part.value;
+      }
+    }
+  } catch (err) {
+    return reply.code(500).send({ error: 'Ошибка загрузки файла' });
+  }
+
+  const { title, placement, link } = data;
+  
+  try {
+    const res = await db.query(
+      'INSERT INTO ads (title, placement, "imageUrl", link) VALUES ($1, $2, $3, $4) RETURNING *',
+      [title, placement, uploadedFilePath, link]
+    );
+    return res.rows[0];
+  } catch (err) {
+    request.log.error(err);
+    return reply.code(500).send({ error: 'Ошибка БД' });
+  }
+};
+
+const deleteAd = async (request, reply) => {
+  const { id } = request.params;
+  await db.query('DELETE FROM ads WHERE id = $1', [id]);
+  return { message: 'Реклама удалена' };
+};
+
 module.exports = {
   getAllNews, featureNews, createNews, getNewsById, updateNews, deleteNews,
-  getUsers, updateUserRole, getPendingNews, approveNews, createCategory, updateCategory, deleteCategory
+  getUsers, updateUserRole, getPendingNews, approveNews, 
+  createCategory, updateCategory, deleteCategory,
+  createAd, deleteAd // Экспортируем новые функции
 };

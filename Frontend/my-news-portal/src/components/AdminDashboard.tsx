@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table';
 
 import CategoryManagement from './CategoryManagement';
 import UserManagement from './UserManagement';
+import AdsManager from '../components/AdsManager';
 
 const { Header, Content } = Layout;
 const { Option } = Select;
@@ -27,7 +28,7 @@ interface Article {
   title: string;
   content: string;
   imageUrl: string | null;
-  createdAt: string; // <-- createdAt
+  createdAt: string;
   category_id: number | null;
   categoryName: string | null;
   is_featured: number;
@@ -114,6 +115,12 @@ function AdminDashboard() {
     formData.append('category_id', values.category_id);
     formData.append('is_featured', values.is_featured ? '1' : '0');
     
+    // --- ДОБАВЛЕНО: Отправка тегов ---
+    if (values.tags) {
+        // Превращаем массив тегов в JSON строку, чтобы сервер мог её распарсить
+        formData.append('tags', JSON.stringify(values.tags));
+    }
+    
     if (fileList.length > 0 && fileList[0].originFileObj) {
       formData.append('imageFile', fileList[0].originFileObj);
     } else if (values.imageUrl) {
@@ -141,7 +148,7 @@ function AdminDashboard() {
     },
     {
       title: 'Дата',
-      dataIndex: 'createdAt', // <-- Используем createdAt
+      dataIndex: 'createdAt',
       render: (date) => new Date(date).toLocaleDateString(),
       sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
@@ -238,6 +245,11 @@ function AdminDashboard() {
         key: '3',
         label: 'Пользователи',
         children: <UserManagement />
+      },
+      {
+        key: '4',
+        label: 'Реклама',
+        children: <AdsManager />
       }
     );
   }
@@ -274,6 +286,16 @@ function AdminDashboard() {
             <Select placeholder="Выберите категорию">
               {categories.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
             </Select>
+          </Form.Item>
+          
+          {/* --- ДОБАВЛЕНО ПОЛЕ ДЛЯ ТЕГОВ --- */}
+          <Form.Item name="tags" label="Теги">
+            <Select
+              mode="tags"
+              style={{ width: '100%' }}
+              placeholder="Введите теги и нажмите Enter"
+              tokenSeparators={[',']}
+            />
           </Form.Item>
 
           <Form.Item label="Изображение">

@@ -124,10 +124,10 @@ const getUserVote = async (request, reply) => {
   return { userVote: res.rows.length > 0 ? res.rows[0].value : 0 };
 };
 
-// --- КОММЕНТАРИИ (С ЛАЙКАМИ) ---
+// --- КОММЕНТАРИИ ---
 const getComments = async (req, reply) => {
   const { id } = req.params;
-  const { page = 1, limit = 5 } = req.query; // По умолчанию 5 веток на страницу
+  const { page = 1, limit = 5 } = req.query; 
   const offset = (page - 1) * limit;
 
   let userId = null;
@@ -140,14 +140,12 @@ const getComments = async (req, reply) => {
   } catch (e) {}
 
   try {
-    // 1. Считаем общее количество КОРНЕВЫХ комментариев (для кнопки "Загрузить еще")
     const countRes = await db.query(
       'SELECT COUNT(*) FROM comments WHERE news_id = $1 AND parent_id IS NULL', 
       [id]
     );
     const totalRoots = parseInt(countRes.rows[0].count);
 
-    // 2. Получаем ID корневых комментариев для ТЕКУЩЕЙ страницы
     const rootsRes = await db.query(
       `SELECT id FROM comments 
        WHERE news_id = $1 AND parent_id IS NULL 
@@ -158,14 +156,10 @@ const getComments = async (req, reply) => {
     
     const rootIds = rootsRes.rows.map(r => r.id);
 
-    // Если на этой странице нет корней и это не первая страница, возвращаем пустоту
     if (rootIds.length === 0) {
       return { data: [], total: totalRoots };
     }
 
-    // 3. Загружаем:
-    //    А) Корневые комментарии из списка rootIds
-    //    Б) ВСЕ ответы (parent_id IS NOT NULL), чтобы дерево строилось правильно
     const sql = `
       SELECT 
         c.*,
@@ -204,7 +198,6 @@ const createComment = async (req, reply) => {
     'INSERT INTO comments (news_id, author, content, parent_id) VALUES ($1, $2, $3, $4) RETURNING *', 
     [id, author, content, parent_id || null]
   );
-  // Возвращаем чистый коммент (лайков пока 0)
   const newComment = res.rows[0];
   newComment.likes = 0;
   newComment.dislikes = 0;
@@ -213,10 +206,9 @@ const createComment = async (req, reply) => {
   return newComment;
 };
 
-// --- ГОЛОСОВАНИЕ ЗА КОММЕНТАРИЙ ---
 const voteComment = async (request, reply) => {
-  const { id } = request.params; // ID комментария
-  const { value } = request.body; // 1 или -1
+  const { id } = request.params; 
+  const { value } = request.body; 
   const userId = request.user.userId;
 
   if (![1, -1].includes(value)) return reply.code(400).send({ error: 'Неверное значение' });
@@ -242,8 +234,26 @@ const voteComment = async (request, reply) => {
   }
 };
 
+const deleteComment = async (req, reply) => {
+  const { id } = req.params;
+  try {
+    const userId = req.user.userId || req.user.id;
+    if (!userId) return reply.code(401).send({ error: 'Не удалось определить пользователя' });
 
-// --- Другие функции ---
+    const userRes = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0];
+
+    if (!user || user.role !== 'admin') {
+      return reply.code(403).send({ error: 'Только админ может удалять комментарии' });
+    }
+    await db.query('DELETE FROM comments WHERE id = $1', [id]);
+    return { success: true };
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(500).send({ error: 'Ошибка при удалении' });
+  }
+};
+
 const searchNews = async (request, reply) => {
   const { q } = request.query;
   if (!q) return [];
@@ -265,20 +275,28 @@ const getCategories = async (req, reply) => {
   const res = await db.query('SELECT * FROM categories');
   return res.rows;
 };
+
+// --- РЕКЛАМА (ИСПРАВЛЕНО: ТЕПЕРЬ ЧИТАЕМ ИЗ БД) ---
 const getAds = async (req, reply) => {
-  return [
-    { id: 1, placement: 'sidebar', adCode: '<img src="/uploads/ad1.jpg" />' },
-    { id: 2, placement: 'header', adCode: '<div>Реклама</div>' }
-  ];
+  try {
+    const res = await db.query('SELECT * FROM ads ORDER BY "createdAt" DESC');
+    return res.rows;
+  } catch (err) {
+    req.log.error(err);
+    return [];
+  }
 };
+
 const getPopularNews = async (req, reply) => {
   const res = await db.query(`SELECT * FROM news WHERE status = 'approved' ORDER BY view_count DESC LIMIT 5`);
   return res.rows;
 };
+
 const getFeaturedNews = async (req, reply) => {
   const res = await db.query(`SELECT * FROM news WHERE status = 'approved' AND is_featured = 1 ORDER BY "createdAt" DESC LIMIT 3`);
   return res.rows;
 };
+
 const getNewsByCategory = async (req, reply) => {
   const { slug } = req.params;
   const catRes = await db.query('SELECT id, name FROM categories WHERE slug = $1', [slug]);
@@ -290,62 +308,21 @@ const getNewsByCategory = async (req, reply) => {
   return result;
 };
 
-// ИСПРАВЛЕННАЯ ФУНКЦИЯ УДАЛЕНИЯ
-const deleteComment = async (req, reply) => {
-  const { id } = req.params;
-
-  try {
-    // 1. Берем ID юзера из req.user (его туда положил плагин авторизации)
-    // Внимание: мы используем ||, чтобы поддержать разные форматы пейлоада токена
-    const userId = req.user.userId || req.user.id;
-
-    if (!userId) {
-       return reply.code(401).send({ error: 'Не удалось определить пользователя' });
-    }
-
-    // 2. Проверяем роль в базе данных (действительно ли Админ?)
-    const userRes = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
-    const user = userRes.rows[0];
-
-    // Только админ может удалять
-    if (!user || user.role !== 'admin') {
-      return reply.code(403).send({ error: 'Только админ может удалять комментарии' });
-    }
-
-    // 3. Удаляем комментарий
-    // Если есть ответы, они тоже удалятся (если настроен CASCADE)
-    // Если нет CASCADE, удаление может упасть, но чаще всего он есть.
-    await db.query('DELETE FROM comments WHERE id = $1', [id]);
-
-    return { success: true };
-
-  } catch (err) {
-    req.log.error(err);
-    return reply.code(500).send({ error: 'Ошибка при удалении' });
-  }
-};
-
+// --- ВАЛЮТА (ОСТАВЛЯЕМ КАК ЕСТЬ) ---
 let cachedRates = null;
 let lastFetchTime = 0;
-const CACHE_TTL = 3600 * 1000; // 1 час
+const CACHE_TTL = 3600 * 1000; 
 
 const getExchangeRates = async (req, reply) => {
   try {
     const now = Date.now();
-    
-    // Если кэш есть и он свежий — отдаем его
     if (cachedRates && (now - lastFetchTime < CACHE_TTL)) {
       return cachedRates;
     }
-
-    // Иначе делаем запрос к внешнему API (базовая валюта USD)
-    // Используем встроенный fetch (доступен в Node.js 18+)
     const response = await fetch('https://open.er-api.com/v6/latest/USD');
     const data = await response.json();
 
     if (data && data.rates) {
-      // Формируем красивый объект для фронта
-      // Нам нужны курсы относительно USD, но мы можем пересчитать их как угодно
       cachedRates = {
         USD: 1,
         EUR: data.rates.EUR,
@@ -361,7 +338,6 @@ const getExchangeRates = async (req, reply) => {
     }
   } catch (err) {
     req.log.error(err);
-    // Если упала ошибка, но есть старый кэш — вернем его
     if (cachedRates) return cachedRates;
     return reply.code(500).send({ error: 'Ошибка получения курсов валют' });
   }

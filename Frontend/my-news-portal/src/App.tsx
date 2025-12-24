@@ -2,8 +2,9 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import apiClient from './api/apiClient';
 import { useAuth } from './context/AuthContext';
-// ВАЖНО: Добавляем импорт виджета
 import CurrencyWidget from './components/CurrencyWidget'; 
+// 1. ИМПОРТИРУЕМ БАННЕР
+import AdBanner from './components/AdBanner';
 
 interface Category {
   id: number;
@@ -69,7 +70,6 @@ function App() {
           <Link to="/">MOЙ NEWS</Link>
         </div>
         
-        {/* Добавил gap для отступов между элементами */}
         <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           
           <form onSubmit={handleSearchSubmit} className="header-search">
@@ -82,7 +82,6 @@ function App() {
             <button type="submit">🔍</button>
           </form>
 
-          {/* Виджет валют */}
           <CurrencyWidget />
 
           {user ? (
@@ -104,6 +103,11 @@ function App() {
           )}
         </div>
       </header>
+      
+      {/* 2. ВСТАВЛЯЕМ БАННЕР СЮДА (МЕЖДУ ХЕДЕРОМ И КОНТЕНТОМ) */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 15px' }}>
+         <AdBanner placement="header" />
+      </div>
 
       <main>
         <Outlet />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom'; // Добавили Link
 import apiClient from '../api/apiClient';
 import { getImageUrl } from '../utils/imageUrl';
 import Comments from './Comments';
@@ -32,12 +32,11 @@ interface Article {
 
 function NewsArticle() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth(); // Чтобы знать, можно ли лайкать
+  const { user } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Состояния для лайков
-  const [userVote, setUserVote] = useState<number>(0); // 0, 1, -1
+  const [userVote, setUserVote] = useState<number>(0);
   const [likesCount, setLikesCount] = useState(0);
   const [dislikesCount, setDislikesCount] = useState(0);
 
@@ -49,7 +48,6 @@ function NewsArticle() {
         setLikesCount(response.data.likes || 0);
         setDislikesCount(response.data.dislikes || 0);
 
-        // Если юзер вошел, узнаем его голос
         if (user) {
           const voteRes = await apiClient.get<{ userVote: number }>(`/news/${id}/vote-status`);
           setUserVote(voteRes.data.userVote);
@@ -70,18 +68,15 @@ function NewsArticle() {
       return;
     }
     try {
-      // Оптимистичное обновление интерфейса (сразу меняем цифры)
       const oldVote = userVote;
       let newLikes = likesCount;
       let newDislikes = dislikesCount;
 
       if (oldVote === value) {
-        // Убираем голос
         setUserVote(0);
         if (value === 1) newLikes--;
         else newDislikes--;
       } else {
-        // Ставим новый голос
         setUserVote(value);
         if (value === 1) {
           newLikes++;
@@ -94,12 +89,10 @@ function NewsArticle() {
       setLikesCount(newLikes);
       setDislikesCount(newDislikes);
 
-      // Шлем запрос
       await apiClient.post(`/news/${id}/vote`, { value });
       
     } catch (err) {
       message.error('Ошибка голосования');
-      // Откат изменений (можно добавить, если критично)
     }
   };
 
@@ -139,9 +132,7 @@ function NewsArticle() {
 
       <Divider />
 
-      {/* Блок Лайков и Шеринга */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
-        
         <Space size="middle">
            <Button 
              type={userVote === 1 ? 'primary' : 'default'} 
@@ -173,10 +164,22 @@ function NewsArticle() {
 
       <Divider />
       
+      {/* --- ИЗМЕНЕННАЯ ЧАСТЬ: КЛИКАБЕЛЬНЫЕ ТЕГИ --- */}
       {article.tags && article.tags.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <Text strong style={{ marginRight: 10 }}>Теги:</Text>
-          {article.tags.map(tag => <Tag key={tag.id} color="geekblue">#{tag.name}</Tag>)}
+          {article.tags.map(tag => (
+            <Link key={tag.id} to={`/search?q=${encodeURIComponent(tag.name)}`}>
+              <Tag 
+                color="geekblue" 
+                style={{ cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >
+                #{tag.name}
+              </Tag>
+            </Link>
+          ))}
         </div>
       )}
 
