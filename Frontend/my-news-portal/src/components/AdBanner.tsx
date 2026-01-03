@@ -36,7 +36,6 @@ function AdBanner({ placement }: AdBannerProps) {
 
   if (loading || !ad) return null;
 
-  // ОПРЕДЕЛЯЕМ СТИЛИ В ЗАВИСИМОСТИ ОТ МЕСТА
   const isHeader = placement === 'header';
 
   return (
@@ -56,13 +55,12 @@ function AdBanner({ placement }: AdBannerProps) {
         href={ad.link} 
         target="_blank" 
         rel="noopener noreferrer"
-        style={{ display: 'inline-block' }} // Чтобы ссылка обтягивала картинку по центру
+        style={{ display: 'inline-block' }} 
       >
         <img 
           src={getImageUrl(ad.imageUrl)} 
           alt="Реклама" 
           style={{ 
-            // ДЛЯ ХЕДЕРА:
             height: isHeader ? '100%' : 'auto', 
             maxHeight: isHeader ? '150px' : 'none', // Ограничиваем высоту (120-150px — стандарт)
             width: isHeader ? 'auto' : '100%',       // Ширина подстраивается под высоту

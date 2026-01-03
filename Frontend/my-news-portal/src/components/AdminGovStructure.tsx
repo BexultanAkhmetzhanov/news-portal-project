@@ -21,7 +21,6 @@ const AdminGovStructure = () => {
     try {
       const res = await apiClient.get('/government');
       
-      // 👇 ИСПРАВЛЕНИЕ: Явно указали, что функция возвращает массив (: any[])
       const formatData = (nodes: any[]): any[] => 
         nodes.map((node: any) => ({
           ...node,
@@ -44,7 +43,7 @@ const AdminGovStructure = () => {
     fetchTree();
   }, []);
 
-  // 2. Рендер одной строки дерева
+
   const renderNodeTitle = (node: any) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
       <div>
@@ -88,7 +87,6 @@ const AdminGovStructure = () => {
     </div>
   );
 
-  // 3. Открытие модалки
   const openModal = (mode: 'add' | 'edit', node: any) => {
     setModalMode(mode);
     setCurrentNode(node);
@@ -106,7 +104,6 @@ const AdminGovStructure = () => {
     setIsModalOpen(true);
   };
 
-  // 4. Сохранение
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
@@ -130,7 +127,6 @@ const AdminGovStructure = () => {
     }
   };
 
-  // 5. Удаление
   const handleDelete = async (id: number) => {
     if(!window.confirm('Точно удалить эту должность?')) return;
     try {

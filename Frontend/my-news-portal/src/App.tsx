@@ -3,7 +3,6 @@ import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import apiClient from './api/apiClient';
 import { useAuth } from './context/AuthContext';
 import CurrencyWidget from './components/CurrencyWidget'; 
-// 1. ИМПОРТИРУЕМ БАННЕР
 import AdBanner from './components/AdBanner';
 
 interface Category {
@@ -45,21 +44,23 @@ function App() {
 
   return (
     <div className="app-container">
+      
+      {/* 1. ВЕРХНЕЕ МЕНЮ КАТЕГОРИЙ */}
       <div className="top-bar">
         <div className="top-bar-content">
           <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''} end>
             Главная
           </NavLink>
 
-          <NavLink to="/comics" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#ff7f50' }}>
+          {/* СИНИЙ ДЛЯ КОМИКСОВ */}
+          <NavLink to="/comics" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#0077cc' }}>
             КОМИКСЫ
           </NavLink>
 
-          <NavLink to="/government" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#ff7f50' }}>
+          {/* ЗОЛОТОЙ ДЛЯ ПРАВИТЕЛЬСТВА */}
+          <NavLink to="/government" className={({ isActive }) => isActive ? 'active' : ''} style={{ fontWeight: 'bold', color: '#e6b800' }}>
             ПРАВИТЕЛЬСТВО
           </NavLink>
-
-          
 
           {!loading && categories.map((category) => (
             category.slug !== 'comics' && (
@@ -71,12 +72,15 @@ function App() {
         </div>
       </div>
 
+      {/* 2. ШАПКА САЙТА */}
       <header className="main-header">
         <div className="header-logo">
-          <Link to="/">MOЙ NEWS</Link>
+          {/* MOЙ - черный, NEWS - синий */}
+          <Link to="/">MOЙ <span>NEWS</span></Link>
         </div>
         
-        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        {/* Все элементы в одну строку */}
+        <div className="header-actions">
           
           <form onSubmit={handleSearchSubmit} className="header-search">
             <input
@@ -90,28 +94,30 @@ function App() {
 
           <CurrencyWidget />
 
+          {/* Блок авторизации */}
           {user ? (
             <>
               {(user.role === 'admin' || user.role === 'editor') && (
-                <Link to="/admin" className="admin-link">
+                <Link to="/admin" className="nav-btn" style={{ color: 'red', fontWeight: 'bold' }}>
                   Админка
                 </Link>
               )}
               
-              <Link to="/profile" className="admin-link" style={{ fontWeight: 'bold', color: 'var(--tengri-green)' }}>
+              <Link to="/profile" className="nav-btn profile-link" style={{ fontWeight: 'bold' }}>
                 {user.username}
               </Link>
             </>
           ) : (
-            <Link to="/login" className="admin-link">
+            /* КНОПКА ВОЙТИ С ДИЗАЙНОМ */
+            <Link to="/login" className="nav-btn login-btn">
               Войти
             </Link>
           )}
         </div>
       </header>
       
-      {/* 2. ВСТАВЛЯЕМ БАННЕР СЮДА (МЕЖДУ ХЕДЕРОМ И КОНТЕНТОМ) */}
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 15px' }}>
+      {/* Баннер */}
+      <div style={{ maxWidth: '1200px', margin: '20px auto 0', padding: '0 30px' }}>
          <AdBanner placement="header" />
       </div>
 
@@ -120,7 +126,7 @@ function App() {
       </main>
 
       <footer>
-        <p>Новости Беки</p>
+        <p>© 2025 Мой News. Все права защищены.</p>
       </footer>
     </div>
   );

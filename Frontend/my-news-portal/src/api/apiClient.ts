@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:3001',
-  withCredentials: true, // <-- ВАЖНО: Разрешаем отправку cookies
+  withCredentials: true, 
 });
 
 // Interceptor ответа (для обработки протухшего токена)
@@ -32,7 +32,7 @@ export const authAPI = {
   googleLogin: (token: string) => apiClient.post('/google', { token }),
 };
 
-// ... (Остальные API методы: newsAPI, categoriesAPI и т.д. оставляем как есть)
+
 export const newsAPI = {
   getAll: (params?: any) => apiClient.get('/news', { params }),
   getById: (id: number) => apiClient.get(`/news/${id}`),

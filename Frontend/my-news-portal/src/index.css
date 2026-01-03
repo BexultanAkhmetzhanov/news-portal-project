@@ -1,337 +1,299 @@
 :root {
-  /* 1. Фон делаем полностью белым */
+  /* --- 1. ЦВЕТОВАЯ ГАММА (AIRY / ВОЗДУШНАЯ) --- */
   --bg-color: #ffffff; 
-  --bg-secondary: #ffffff;
+  --bg-secondary: #f8f9fa; /* Очень легкий серый для полей ввода */
 
-  /* 2. Текст оставляем темным */
-  --text-color: #202020;
-  --text-secondary: #606060;
+  /* Текст */
+  --text-color: #202124;
+  --text-secondary: #5f6368;
   
-  /* 3. Цвет границ */
-  --border-color: #eeeeee; /* Сделаем чуть светлее */
+  /* Границы */
+  --border-color: #e0e0e0; /* Чуть мягче */
 
-  /* 4. ГЛАВНОЕ: Меняем акцентный цвет с синего/зеленого на красный */
-  --accent-color: #D32F2F; /* (Красный цвет, как "НАУКА") */
-  --tengri-green: #D32F2F; /* (Переименуем это мысленно, но используем для активных ссылок) */
+  /* --- ГЛАВНОЕ: СИНИЙ И ЖЕЛТЫЙ --- */
+  --accent-color: #0077cc; /* Небесно-синий (вместо красного) */
+  --accent-hover: #005fa3; 
   
-  --radius-input: 4px;
+--tengri-green: var(--accent-color);
+
+  --highlight-color: #FFD700; /* Золотой (для Правительства/Важного) */
+  
+  --radius-input: 8px; /* Чуть скруглим углы */
 }
 
-/* Мы УДАЛИЛИ '@media (prefers-color-scheme: dark)'
-  чтобы сайт всегда был светлым, как на скриншоте.
-*/
-
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background-color: var(--bg-color); /* (Теперь это белый) */
+  background-color: var(--bg-color);
   color: var(--text-color);
   line-height: 1.6;
 }
+
 * { box-sizing: border-box; }
-a { color: inherit; text-decoration: none; } 
-a:hover { color: var(--accent-color); } /* (Теперь это красный) */
+a { color: inherit; text-decoration: none; transition: 0.2s; } 
+a:hover { color: var(--accent-color); } /* Теперь при наведении СИНИЙ */
+
 img { max-width: 100%; height: auto; display: block; }
 small { color: var(--text-secondary); }
-h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 600; }
+h1, h2, h3, h4, h5, h6 { margin: 0.5em 0; font-weight: 700; color: var(--text-color); }
 
 .app-container {
-  max-width: 1100px; 
+  max-width: 1200px; 
   margin: 0 auto;
   padding: 0; 
-  background-color: var(--bg-secondary); /* (Теперь это белый) */
-  
-  /* Убираем тень, как на скриншоте */
-  box-shadow: none; 
+  background-color: #fff;
+  min-height: 100vh;
 }
 
-/* --- ВЕРХНИЙ БАР (как на скриншоте) --- */
+/* --- ВЕРХНИЙ БАР (МЕНЮ) --- */
 .top-bar {
-  /* Меняем фон с #333 (темный) на белый */
   background-color: #ffffff; 
-  color: var(--text-color); /* Текст делаем темным */
+  color: var(--text-secondary); 
   font-size: 0.9rem;
-  font-weight: 500;
-  /* Добавляем нижнюю границу, как на скриншоте */
+  font-weight: 600;
   border-bottom: 1px solid var(--border-color); 
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .top-bar-content {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 15px;
+  padding: 0 20px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* В одну строку */
+  overflow-x: auto;  /* Скролл на мобилках */
+  gap: 10px;
 }
 .top-bar a {
-  padding: 10px 15px;
+  padding: 15px 10px;
   text-transform: uppercase;
-  color: var(--text-color); /* Цвет ссылок - темный */
-  transition: color 0.2s;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
 }
 .top-bar a:hover {
-  background-color: transparent; /* Убираем фон при наведении */
-  color: var(--accent-color); /* (красный) */
+  background-color: transparent;
+  color: var(--accent-color); /* Синий при наведении */
 }
 .top-bar a.active {
-  /* Активная ссылка (как "НАУКА") */
-  background-color: transparent;
-  color: var(--accent-color); /* (красный) */
-  font-weight: 700;
+  color: var(--accent-color);
+  border-bottom: 3px solid var(--accent-color); /* Синяя линия снизу */
 }
+
+/* --- ГЛАВНАЯ ШАПКА --- */
 .main-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 15px;  
+  padding: 20px 30px;  
   border-bottom: 1px solid var(--border-color);
+  background: #fff;
 }
 .header-logo {
-  font-size: 1.8rem;
+  font-size: 2.2rem;
   font-weight: 900;
   color: var(--text-color);
+  letter-spacing: -1px;
 }
-.header-logo a { text-decoration: none; }
+.header-logo span { color: var(--accent-color); } /* Для части слова (NEWS) */
+
 .header-logo a:hover { color: inherit; }
 
+/* Блок справа (Поиск, Валюта, Вход) */
 .header-actions {
   display: flex;
+  flex-direction: row; /* СТРОГО В РЯД */
   align-items: center;
-  gap: 15px;
+  gap: 20px;
 }
+
+/* Поиск - делаем круглее и воздушнее */
 .header-search {
   display: flex;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-input);
+  align-items: center;
+  background-color: #f1f3f4; /* Светло-серый фон */
+  border: 1px solid transparent;
+  border-radius: 20px; /* Круглый */
+  padding: 5px 15px;
+  width: 260px;
+  transition: 0.2s;
+}
+.header-search:focus-within {
+  background-color: #fff;
+  border-color: var(--accent-color); /* Синяя рамка при клике */
+  box-shadow: 0 0 0 2px rgba(0, 119, 204, 0.1);
 }
 .header-search input {
   border: none;
-  padding: 8px 12px;
-  background: none;
-  border-radius: var(--radius-input) 0 0 var(--radius-input);
+  background: transparent;
+  width: 100%;
+  padding: 5px;
+  outline: none;
+  font-size: 0.95rem;
   color: var(--text-color);
 }
-.header-search input:focus { outline: none; }
 .header-search button {
   border: none;
   background: none;
-  padding: 8px 10px;
   cursor: pointer;
-  border-left: 1px solid var(--border-color);
   color: var(--text-secondary);
-}
-.admin-link {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-size: 1.1rem;
 }
 
+/* СТИЛИ ДЛЯ КНОПОК ВХОДА И АДМИНКИ */
+.nav-btn {
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+
+/* Кнопка "Войти" - делаем её заметной */
+.login-btn {
+  background-color: var(--accent-color);
+  color: white !important; /* Белый текст */
+}
+.login-btn:hover {
+  background-color: var(--accent-hover);
+  opacity: 0.9;
+}
+
+/* Ссылка на профиль/админку */
+.profile-link {
+  color: var(--text-color);
+}
+.profile-link:hover {
+  color: var(--accent-color);
+}
+
+/* --- ОСНОВНОЙ КОНТЕНТ (Твои стили сохранены) --- */
 main { 
-  padding: 20px 15px; 
+  padding: 40px 30px; 
 }
 footer {
   text-align: center;
-  padding: 20px 15px;
-  margin-top: 20px;
+  padding: 40px;
+  margin-top: 40px;
   border-top: 1px solid var(--border-color);
   color: var(--text-secondary);
 }
  
-/* НОВЫЕ СТИЛИ ДЛЯ ГЛАВНОЙ СТРАНИЦЫ (index.css)
-   Они заменяют все, что было, начиная с .home-layout
-*/
+/* --- СЕТКИ (LAYOUTS) - Взято из твоего файла --- */
 
 .home-layout {
   display: grid;
-  grid-template-columns: 1fr; /* 1 колонка на мобильных */
-  gap: 20px;
+  grid-template-columns: 1fr; 
+  gap: 30px;
 }
 
 @media (min-width: 900px) {
   .home-layout {
-    /* 2 колонки на ПК: 2 части для новостей, 1 для сайдбара */
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1fr; /* 2 части новости, 1 часть сайдбар */
   }
 }
 
-/* --- СТИЛИ ГЛАВНОЙ КОЛОНКИ (ЛЕВОЙ) --- */
+/* Левая колонка */
 .main-feed {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 30px;
 }
 
-/* --- Главная (Featured) новость --- */
+/* Главная новость */
 .featured-article {
   position: relative;
-  overflow: hidden;
-}
-.featured-article a {
-  display: block;
-  text-decoration: none;
-  color: inherit;
 }
 .featured-article img {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 400px; /* Фиксируем высоту для красоты */
   object-fit: cover;
-  border-radius: var(--radius-input);
-  transition: transform 0.3s ease;
-}
-.featured-article a:hover img {
-  transform: scale(1.03);
+  border-radius: 12px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 .featured-article h2 {
-  font-size: 1.8rem;
-  font-weight: 700;
+  font-size: 2rem;
   line-height: 1.2;
-  margin: 10px 0 5px 0;
+  margin: 10px 0;
 }
-.featured-article .article-meta {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
+.featured-article:hover h2 { color: var(--accent-color); }
 
-/* --- Сетка под главной новостью (как на скриншоте) --- */
+/* Сетка новостей */
 .main-feed-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 колонки */
-  gap: 20px;
-}
-.feed-grid-item a {
-  display: block;
-  text-decoration: none;
-  color: inherit;
+  grid-template-columns: 1fr 1fr; 
+  gap: 25px;
 }
 .feed-grid-item img {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  height: 200px;
   object-fit: cover;
-  border-radius: var(--radius-input);
-  margin-bottom: 8px;
+  border-radius: 8px;
+  margin-bottom: 10px;
 }
 .feed-grid-item h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   line-height: 1.3;
   margin: 0 0 5px 0;
 }
-.feed-grid-item .article-meta {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
+.feed-grid-item:hover h3 { color: var(--accent-color); }
 
-/* --- СТИЛИ САЙДБАРА (ПРАВОЙ) --- */
+/* --- САЙДБАР (ПРАВАЯ) --- */
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 30px;
 }
 
-/* Общий блок сайдбара */
 .sidebar-section {
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-input);
-  padding: 15px;
+  background-color: #fafafa; /* Чуть серый фон для выделения */
+  border-radius: 12px;
+  padding: 20px;
 }
 
-/* "LIVE" блок (как на скриншоте) */
-.sidebar-live {
-  background-color: var(--bg-color);
-}
+/* LIVE блок */
 .sidebar-live .live-badge {
-  color: #FF0000; /* Красный цвет для LIVE */
-  font-weight: 700;
-  font-size: 0.9rem;
-  margin-bottom: 5px;
+  color: var(--accent-color); /* Синий LIVE */
+  font-weight: 900;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+  display: block;
+  letter-spacing: 1px;
 }
 .sidebar-live h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: 1.1rem;
   margin: 0 0 5px 0;
 }
-.sidebar-live a:hover h3 {
-  text-decoration: underline;
-}
-.sidebar-live .article-meta {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
 
-/* Сетка в сайдбаре (как на скриншоте) */
+/* Сетка сайдбара */
 .sidebar-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 колонки */
+  grid-template-columns: 1fr 1fr; 
   gap: 15px;
-}
-
-.sidebar-grid-item a {
-  display: block;
-  text-decoration: none;
-  color: inherit;
 }
 .sidebar-grid-item img {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  height: 90px;
   object-fit: cover;
-  border-radius: var(--radius-input);
-  margin-bottom: 8px;
+  border-radius: 6px;
+  margin-bottom: 5px;
 }
 .sidebar-grid-item h4 {
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   line-height: 1.3;
-  margin: 0 0 5px 0;
-}
-.sidebar-grid-item a:hover h4 {
-  text-decoration: underline;
-}
-.sidebar-grid-item .article-meta {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-/* Адаптация для мобильных */
-@media (max-width: 600px) {
-  /* На мобильных все сетки превращаются в 1 колонку */
-  .main-feed-grid {
-    grid-template-columns: 1fr;
-  }
-  .sidebar-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Стили для страницы статьи (чтобы текст не "прилипал") */
-.article-content {
-  line-height: 1.7;
-  font-size: 1.1rem;
-  white-space: pre-wrap; /* Сохраняет абзацы */
-  margin-top: 20px;
-}
-.article-header {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 15px;
-  margin-bottom: 20px;
-}
-.article-header h1 {
-  font-size: 2.2rem;
-  line-height: 1.2;
   margin: 0;
 }
-.article-header .meta-info {
-  margin-top: 10px;
-  color: var(--text-secondary);
-}
+.sidebar-grid-item:hover h4 { color: var(--accent-color); }
 
-.article-content img {
-  max-width: 100%;
-  height: auto;
-  margin: 20px 0;
-}
-.article-content h1, .article-content h2 {
-  margin-top: 20px;
-}
-.article-content ul {
-  padding-left: 20px;
+/* Адаптив */
+@media (max-width: 600px) {
+  .main-feed-grid, .sidebar-grid { grid-template-columns: 1fr; }
+  .main-header { flex-direction: column; gap: 20px; }
+  .header-actions { width: 100%; justify-content: space-between; }
 }
